@@ -107,7 +107,6 @@
 				3639AF12D0D80B54AD3EAD08 /* Pods-RunnerTests.release.xcconfig */,
 				51C8BB14DC71BF13F7D8E767 /* Pods-RunnerTests.profile.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -477,6 +476,8 @@
 				DEVELOPMENT_TEAM = F2W45BF2AV;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "To communicate with devices";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "To communicate with devices";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -661,6 +662,8 @@
 				DEVELOPMENT_TEAM = F2W45BF2AV;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "To communicate with devices";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "To communicate with devices";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -685,6 +688,8 @@
 				DEVELOPMENT_TEAM = F2W45BF2AV;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "To communicate with devices";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "To communicate with devices";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
