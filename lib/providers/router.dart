@@ -1,4 +1,5 @@
 // router.dart
+import 'package:flutter_app/ble_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import './auth.dart';
@@ -30,6 +31,10 @@ final routerProvider = Provider((ref) {
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/ble',
+        builder: (context, state) =>  BluetoothScreen(),
       ),
     ],
   );

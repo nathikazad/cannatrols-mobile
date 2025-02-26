@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -25,6 +26,12 @@ class HomeScreen extends ConsumerWidget {
           children: [
             const Text('Home Page'),
             if (user != null) Text('Email: ${user.email}'),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.bluetooth),
+              label: const Text('Go to BLE Page'),
+              onPressed: () => context.push('/ble')
+            ),
           ],
         ),
       ),
