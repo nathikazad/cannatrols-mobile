@@ -1,7 +1,6 @@
 // router.dart
 import 'package:flutter_app/ble_screen.dart';
 import 'package:flutter_app/screens/cure_cycle.dart';
-import 'package:flutter_app/utils/mqtt.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import './auth.dart';
@@ -40,14 +39,10 @@ final routerProvider = Provider((ref) {
       ),
       GoRoute(
         path: '/mqtt/:deviceId',  // The colon indicates a path parameter
-        builder: (context, state) => MqttConsole(
+        builder: (context, state) => CureCycleScreen(
           deviceId: state.pathParameters['deviceId'] ?? '',
         ),
-      ),
-      GoRoute(
-        path: '/cure',
-        builder: (context, state) =>  CureCycleScreen(),
-      ),
+      )
     ],
   );
 });
