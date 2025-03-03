@@ -30,6 +30,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
   bool _showStubControls = false;
   late final CureDataController _controller;
   late final String _deviceId;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -46,7 +47,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
       }
     });
 
-    Timer.periodic(Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_currentData?.cycle != CureCycle.store &&
           _currentData?.isPlaying == true) {
         setState(() {
@@ -84,9 +85,9 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   @override
   void dispose() {
-    if (_isPlaying) {
-      _timer.cancel();
-    }
+
+    _timer?.cancel();
+
     _controller.disconnect();
     super.dispose();
   }
@@ -151,7 +152,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = ref.watch(cureDataControllerProvider(widget.deviceId));
+    final controller = ref.watch(cureDataControllerProvider(_deviceId));
     final isUsingStubService = controller.isUsingStubService;
 
     return Scaffold(
@@ -208,7 +209,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                     color: Colors.white.withOpacity(0.9),
                     child: SafeArea(
                       top: false,
-                      child: StubControls(deviceId: widget.deviceId),
+                      child: StubControls(deviceId: _deviceId),
                     ),
                   ),
                 ),
@@ -347,21 +348,22 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             // Control Buttons
-            Row(
-              children: [
-                // Show Play button only when not playing
-                if (!_isPlaying)
-                  _buildControlButton('Start', onTap: _currentData?.cycle == CureCycle.store ? _advanceToNextCycle : _controller.play),
+            if(_currentData!= null)
+              Row(
+                children: [
+                  // Show Play button only when not playing
+                  if (!_currentData!.isPlaying)
+                    _buildControlButton('Start', onTap: _currentData?.cycle == CureCycle.store ? _advanceToNextCycle : _controller.play),
 
-                // Show Pause button only when playing
-                if (_isPlaying)
-                  _buildControlButton('Pause', onTap: _controller.pause),
+                  // Show Pause button only when playing
+                  if (!_currentData!.isPlaying)
+                    _buildControlButton('Pause', onTap: _controller.pause),
 
-                SizedBox(width: 8),
-                if (_currentData != null && _currentData?.cycle != CureCycle.store)
-                  _buildControlButton('Reset', onTap: _controller.restart),
-              ],
-            ),
+                  SizedBox(width: 8),
+                  if (_currentData != null && _currentData?.cycle != CureCycle.store)
+                    _buildControlButton('Reset', onTap: _controller.restart),
+                ],
+              ),
             if (_currentData?.cycle != CureCycle.store) SizedBox(height: 20),
 
             if (_currentData != null && _currentData?.cycle != CureCycle.store)
