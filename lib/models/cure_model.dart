@@ -14,6 +14,13 @@ CureCycle stringToCureCycle(String cycleString) {
   );
 }
 
+class Device {
+  final String id;
+  final String name;
+
+  Device({required this.id, required this.name});
+}
+
 // Data model for environmental data
 class EnvironmentalData {
   final double temperature;

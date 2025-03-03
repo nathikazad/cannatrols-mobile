@@ -1,12 +1,13 @@
 // router.dart
 import 'package:flutter_app/ble_screen.dart';
+import 'package:flutter_app/models/cure_model.dart';
+import 'package:flutter_app/screens/device_config_screen.dart';
 import 'package:flutter_app/screens/device_screen.dart';
-import 'package:flutter_app/screens/home.dart';
+import 'package:flutter_app/screens/home_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import './auth.dart';
 import '../screens/login_screen.dart';
-import '../screens/select_screen.dart';
 
 final routerProvider = Provider((ref) {
   final authState = ref.watch(authProvider).state;
@@ -39,12 +40,17 @@ final routerProvider = Provider((ref) {
         builder: (context, state) =>  BluetoothScreen(),
       ),
       GoRoute(
-        path: '/device/:deviceId',  // The colon indicates a path parameter
+        path: '/device',
         builder: (context, state) => DevicesScreen(
-          deviceId: state.pathParameters['deviceId'] ?? '',
+          device: state.extra as Device,
         )
       ),
-      
+      GoRoute(
+        path: '/device_config',
+        builder: (context, state) => DeviceConfigScreen(
+          environmentalData: state.extra as EnvironmentalData?,
+        ),
+      ),
     ],
   );
 });

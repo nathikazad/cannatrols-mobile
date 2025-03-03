@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/models/cure_model.dart';
 import 'package:flutter_app/providers/device_provider.dart';
-import 'package:flutter_app/screens/device_screen.dart';
+
+import 'package:go_router/go_router.dart';
 import 'package:flutter_app/screens/select_screen.dart';
-import 'package:flutter_app/screens/set_up.dart';
 import 'package:flutter_app/screens/setting.dart';
 import 'package:flutter_app/screens/wifi_setup.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +13,7 @@ class Home extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    String? deviceId = ref.watch(selectedDeviceProvider);
+    Device? device = ref.watch(selectedDeviceProvider);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -28,7 +29,7 @@ class Home extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   menuButton('CHECK CYCLE', Color(0xFF4CAF50), () {
-                    if (deviceId == null) {
+                    if (device == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Please select a device first'),
@@ -36,12 +37,7 @@ class Home extends ConsumerWidget {
                         ),
                       );
                     } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DevicesScreen(deviceId: deviceId),
-                        ),
-                      );
+                      GoRouter.of(context,).push('/device', extra: device);
                     }
                   }),
                   menuButton('EDIT CYCLES', Color(0xFF2196F3), () {
@@ -64,7 +60,7 @@ class Home extends ConsumerWidget {
                       MaterialPageRoute(builder: (context) => SettingsScreen()),
                     );
                     print('SYSTEM SET UP tapped');
-                  }),
+                  }, textColor: Colors.white),
                 ],
               ),
             ),
@@ -84,12 +80,12 @@ class Home extends ConsumerWidget {
     );
   }
 
-  Widget menuButton(String title, Color color, VoidCallback onPressed) {
+  Widget menuButton(String title, Color color, VoidCallback onPressed, {Color textColor = Colors.black54}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: SizedBox(
         width: double.infinity,
-        height: 80,
+        height: 60,
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
@@ -104,7 +100,7 @@ class Home extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 38,
                 fontWeight: FontWeight.bold,
-                color: Colors.black54,
+                color: textColor,
               ),
             ),
           ),

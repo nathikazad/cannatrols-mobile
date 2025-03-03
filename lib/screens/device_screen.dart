@@ -9,8 +9,8 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
-  final String deviceId;
-  const DevicesScreen({Key? key, required this.deviceId}) : super(key: key);
+  final Device device;
+  const DevicesScreen({Key? key, required this.device}) : super(key: key);
 
   @override
   ConsumerState<DevicesScreen> createState() => _DeviceScreenState();
@@ -28,14 +28,14 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   bool _showStubControls = false;
   late final CureDataController _controller;
-  late final String _deviceId;
+  late final Device _device;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _deviceId = widget.deviceId;
-    _controller = ref.read(cureDataControllerProvider(_deviceId));
+    _device = widget.device;
+    _controller = ref.read(cureDataControllerProvider(_device.id));
     _connectToDevice();
 
 
@@ -142,9 +142,33 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
     }
   }
 
+  void _navigateToDeviceConfig() async {
+    // Navigate to config screen and await result
+    final result = await GoRouter.of(context).push<Map<String, dynamic>>(
+      '/device_config',
+      extra: _currentData,
+    );
+    
+    // Handle the returned configuration values
+    if (result != null) {
+      double temperature = result['temperature'];
+      double dewPoint = result['dewPoint'];
+      int timeInSeconds = result['timeInSeconds'];
+      bool stepMode = result['stepMode'];
+      
+      // Update device with new configuration values
+      // _controller.updateDeviceConfiguration(
+      //   temperature: temperature,
+      //   dewPoint: dewPoint,
+      //   timeInSeconds: timeInSeconds,
+      //   stepMode: stepMode,
+      // );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = ref.watch(cureDataControllerProvider(_deviceId));
+    final controller = ref.watch(cureDataControllerProvider(_device.id));
     final isUsingStubService = controller.isUsingStubService;
 
     return Scaffold(
@@ -201,7 +225,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                     color: Colors.white.withOpacity(0.9),
                     child: SafeArea(
                       top: false,
-                      child: StubControls(deviceId: _deviceId),
+                      child: StubControls(deviceId: _device.id),
                     ),
                   ),
                 ),
@@ -432,7 +456,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
               ),
             ),
             Text(
-              "$decimal°F",
+              "$decimal F",
               style: TextStyle(
                 color: Colors.black87,
                 fontSize: 64,
@@ -492,9 +516,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
       children: [
         Image.asset('assets/images/logo.png', height: 40),
         GestureDetector(
-          onTap: () {
-            // Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsScreen()));
-          },
+          onTap: _navigateToDeviceConfig,
           child: DottedBorder(
             borderType: BorderType.RRect,
             dashPattern: [10, 10],
@@ -507,7 +529,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'MY COOL CURE 1',
+                      '${widget.device.name}',
                       style: TextStyle(
                         color: Colors.black87,
                         fontSize: 12,

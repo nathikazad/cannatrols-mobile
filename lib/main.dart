@@ -31,6 +31,7 @@ class CannatrolsApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       title: 'Cannatrols',
       routerConfig: router,
+      theme: ThemeData(scaffoldBackgroundColor: Color(0xff404042))
     );
   }
 }
