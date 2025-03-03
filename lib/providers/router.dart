@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import './auth.dart';
 import '../screens/login_screen.dart';
-import '../screens/home_screen.dart';
+import '../screens/select_screen.dart';
 
 final routerProvider = Provider((ref) {
   final authState = ref.watch(authProvider).state;
@@ -39,9 +39,12 @@ final routerProvider = Provider((ref) {
         builder: (context, state) =>  BluetoothScreen(),
       ),
       GoRoute(
-        path: '/device', 
-        builder: (context, state) => DevicesScreen(),
-      )
+        path: '/device/:deviceId',  // The colon indicates a path parameter
+        builder: (context, state) => DevicesScreen(
+          deviceId: state.pathParameters['deviceId'] ?? '',
+        )
+      ),
+      
     ],
   );
 });

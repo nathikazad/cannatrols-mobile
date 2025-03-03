@@ -8,29 +8,8 @@ import '../providers/auth.dart';
 
 final supabase = Supabase.instance.client;
 
-// Fixed the function signature to return List<String>
-Future<List<String>> getDeviceIds() async {
-  final userId = supabase.auth.currentUser!.id;
-  try {
-    final response = await supabase
-        .from('machines')
-        .select('machine_id')
-        .eq('user_id', userId);
-
-    // Parse the response to extract machine_ids into a list
-    List<String> deviceIds = [];
-    for (var item in response) {
-      deviceIds.add(item['machine_id']);
-    }
-    return deviceIds;
-  } catch (e) {
-    print('Error getting devices: $e');
-    return []; // Return empty list instead of null
-  }
-}
-
-class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+class DeviceSelectScreen extends ConsumerWidget {
+  const DeviceSelectScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,7 +42,7 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             Expanded(
               child: FutureBuilder<List<String>>(
-                future: getDeviceIds(),
+                future: ref.read(selectedDeviceProvider.notifier).getDeviceIds(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

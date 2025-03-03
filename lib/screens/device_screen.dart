@@ -3,15 +3,14 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/controllers/cure_controller.dart';
 import 'package:flutter_app/models/cure_model.dart';
-import 'package:flutter_app/providers/device_provider.dart';
 import 'package:flutter_app/stubs/mqtt_stub.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
-  // No longer needs a deviceId parameter
-  const DevicesScreen({Key? key}) : super(key: key);
+  final String deviceId;
+  const DevicesScreen({Key? key, required this.deviceId}) : super(key: key);
 
   @override
   ConsumerState<DevicesScreen> createState() => _DeviceScreenState();
@@ -35,17 +34,10 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
   @override
   void initState() {
     super.initState();
-    String? deviceId = ref.watch(selectedDeviceProvider);
-    // Connect to the device when the screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (deviceId == null) {
-        GoRouter.of(context).pop();
-      } else {
-        _deviceId = deviceId;
-        _controller = ref.read(cureDataControllerProvider(_deviceId));
-        _connectToDevice();
-      }
-    });
+    _deviceId = widget.deviceId;
+    _controller = ref.read(cureDataControllerProvider(_deviceId));
+    _connectToDevice();
+
 
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_currentData?.cycle != CureCycle.store &&
@@ -352,11 +344,9 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
               Row(
                 children: [
                   // Show Play button only when not playing
-                  if (!_currentData!.isPlaying)
-                    _buildControlButton('Start', onTap: _currentData?.cycle == CureCycle.store ? _advanceToNextCycle : _controller.play),
-
-                  // Show Pause button only when playing
-                  if (!_currentData!.isPlaying)
+                  if (_currentData!.cycle == CureCycle.store || !_currentData!.isPlaying)
+                    _buildControlButton('Start', onTap: _currentData?.cycle == CureCycle.store ? _advanceToNextCycle : _controller.play)
+                  else
                     _buildControlButton('Pause', onTap: _controller.pause),
 
                   SizedBox(width: 8),
