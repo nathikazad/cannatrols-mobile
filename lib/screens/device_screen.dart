@@ -3,55 +3,62 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/controllers/cure_controller.dart';
 import 'package:flutter_app/models/cure_model.dart';
+import 'package:flutter_app/providers/device_provider.dart';
 import 'package:flutter_app/stubs/mqtt_stub.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
+
 class DevicesScreen extends ConsumerStatefulWidget {
-  final String deviceId;
-  
-  const DevicesScreen({
-    Key? key, 
-    required this.deviceId,
-  }) : super(key: key);
+  // No longer needs a deviceId parameter
+  const DevicesScreen({Key? key}) : super(key: key);
 
   @override
   ConsumerState<DevicesScreen> createState() => _DeviceScreenState();
 }
 
 class _DeviceScreenState extends ConsumerState<DevicesScreen> {
-  bool _isPlaying = false;
-  
-  late Timer _timer;
-  
+
   // Flags to track connection and data state
   bool _isDataReady = false;
   String? _connectionError;
-  
+
   // Data values (will be populated from service)
-  double? _temperature;
-  double? _dewPoint;
-  int? _humidity;
+  EnvironmentalData? _currentData;
   int _totalSeconds = 0;
 
   bool _showStubControls = false;
   late final CureDataController _controller;
+  late final String _deviceId;
 
   @override
   void initState() {
     super.initState();
-    
-    // Store controller reference during initialization
-    _controller = ref.read(cureDataControllerProvider(widget.deviceId));
-    
+    String? deviceId = ref.watch(selectedDeviceProvider);
     // Connect to the device when the screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _connectToDevice();
+      if (deviceId == null) {
+        GoRouter.of(context).pop();
+      } else {
+        _deviceId = deviceId;
+        _controller = ref.read(cureDataControllerProvider(_deviceId));
+        _connectToDevice();
+      }
+    });
+
+    Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_currentData?.cycle != CureCycle.store &&
+          _currentData?.isPlaying == true) {
+        setState(() {
+          if (_totalSeconds > 0) {
+            _totalSeconds--;
+          }
+        });
+      }
     });
   }
-  
+
   Future<void> _connectToDevice() async {
-    
     // Set up connection status listener
     _controller.connectionStatusStream.listen((status) {
       if (status == ConnectionStatus.error) {
@@ -60,91 +67,69 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
         });
       }
     });
-    
+
     // Set up data listener
     _controller.dataStream.listen((data) {
       setState(() {
-        _temperature = data.temperature;
-        _dewPoint = data.dewPoint;
-        _humidity = data.humidity;
         _totalSeconds = data.timeLeft;
+        _currentData = data;
         _isDataReady = true;
         _connectionError = null;
       });
     });
-    
+
     // Attempt to connect
     await _controller.connect();
   }
 
   @override
-void dispose() {
-  if (_isPlaying) {
-    _timer.cancel();
-  }
-  
-  // Get the controller reference before disposal
-  _controller.disconnect();
-  
-  super.dispose();
-  
-}
-
-  void _startCountdown() {
-    setState(() {
-      _isPlaying = true;
-    });
-    
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_totalSeconds > 0) {
-          _totalSeconds--;
-        } else {
-          _timer.cancel();
-          _isPlaying = false;
-        }
-      });
-    });
-  }
-
-  void _pauseCountdown() {
-    if (_isPlaying) {
-      _timer.cancel();
-      setState(() {
-        _isPlaying = false;
-      });
-    }
-  }
-
-  void _resetCountdown() {
+  void dispose() {
     if (_isPlaying) {
       _timer.cancel();
     }
-    
-    setState(() {
-      _isPlaying = false;
-      _totalSeconds = 0; // Reset to 2d 20:09
-    });
+    _controller.disconnect();
+    super.dispose();
   }
-
 
   String formatSecondsToCountdown(int totalSeconds) {
     // Calculate days, hours, and minutes
     int days = totalSeconds ~/ (24 * 3600);
     int hours = (totalSeconds % (24 * 3600)) ~/ 3600;
     int minutes = (totalSeconds % 3600) ~/ 60;
-    
+
     // Format as "Xd HH:MM"
     return '${days}d ${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
   }
 
-  void _advanceToStore() {
+  void _advanceToNextCycle() {
+    // if current cycle is store, advance to dry
+    // if current cycle is dry, advance to cure
+    // if current cycle is cure, advance to store
+    String nextCycle;
+    switch (_currentData?.cycle) {
+      case CureCycle.store:
+        _controller.advanceToDryCycle();
+        nextCycle = 'Dry';
+        break;
+      case CureCycle.dry:
+        _controller.advanceToCureCycle();
+        nextCycle = 'Cure';
+        break;
+      case CureCycle.cure:
+        _controller.advanceToStore();
+        nextCycle = 'Store';
+        break;
+      default:
+        _controller.advanceToStore();
+        nextCycle = 'Store';
+        break;
+    }
+
+    
     // Implement navigation to store screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Advancing to Store...'))
-    );
-    // You would typically use Navigator here to go to the Store screen
-    // Navigator.push(context, MaterialPageRoute(builder: (context) => StoreScreen()));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Advancing to $nextCycle...')));
   }
 
   void _toggleStubControls() {
@@ -153,14 +138,25 @@ void dispose() {
     });
   }
 
+  Color _getDeviceColor() {
+    switch (_currentData?.cycle) {
+      case CureCycle.cure:
+        return Color(0xFF5AAFDE);
+      case CureCycle.dry:
+        return Color(0xFF7859BF);
+      default:
+        return Color(0xFF53B738);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(cureDataControllerProvider(widget.deviceId));
     final isUsingStubService = controller.isUsingStubService;
-    
+
     return Scaffold(
       body: Container(
-        color: Color(0xFF5AAFDE),
+        color: _getDeviceColor(),
         child: SafeArea(
           child: Stack(
             children: [
@@ -172,9 +168,9 @@ void dispose() {
                   children: [
                     // Top Row with Logo and Controls
                     _buildTopRow(context),
-                    
+
                     SizedBox(height: 60),
-                    
+
                     // Show loading, error, or data section
                     _buildMainContent(),
 
@@ -185,7 +181,7 @@ void dispose() {
                   ],
                 ),
               ),
-              
+
               // Debug floating button (only shown when using stub service)
               if (isUsingStubService)
                 Positioned(
@@ -201,7 +197,7 @@ void dispose() {
                     ),
                   ),
                 ),
-              
+
               // StubControls overlay
               if (_showStubControls && isUsingStubService)
                 Positioned(
@@ -222,42 +218,49 @@ void dispose() {
       ),
     );
   }
-  
+
   Widget _buildMainContent() {
     // If there's a connection error
     if (_connectionError != null) {
       return _buildErrorDisplay(_connectionError!);
     }
-    
+
     // If we're still waiting for data
     if (!_isDataReady) {
       return _buildLoadingDisplay();
     }
-    
+
     // If data is ready, show the normal UI
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Temperature Display
-        _buildParameterDisplaySection("Temperature", _temperature!),
-        
-        // Dew Point Display
-        _buildParameterDisplaySection("Dew Point", _dewPoint!),
-        
-        // Humidity Display
-        _buildHumiditySection(_humidity!),
-      ],
+      children:
+          _currentData != null
+              ? [
+                // Temperature Display
+                _buildParameterDisplaySection(
+                  "Temperature",
+                  _currentData!.temperature,
+                ),
+
+                // Dew Point Display
+                _buildParameterDisplaySection(
+                  "Dew Point",
+                  _currentData!.dewPoint,
+                ),
+
+                // Humidity Display
+                _buildHumiditySection(_currentData!.humidity),
+              ]
+              : [],
     );
   }
-  
+
   Widget _buildLoadingDisplay() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: Colors.white,
-          ),
+          CircularProgressIndicator(color: Colors.white),
           SizedBox(height: 20),
           Text(
             'Connecting to device...',
@@ -270,26 +273,19 @@ void dispose() {
           SizedBox(height: 8),
           Text(
             'Please wait while we establish connection',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildErrorDisplay(String errorMessage) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            color: Colors.red[300],
-            size: 60,
-          ),
+          Icon(Icons.error_outline, color: Colors.red[300], size: 60),
           SizedBox(height: 20),
           Text(
             errorMessage,
@@ -315,7 +311,7 @@ void dispose() {
     );
   }
 
- Widget _buildTopRow(BuildContext context) {
+  Widget _buildTopRow(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -331,20 +327,21 @@ void dispose() {
                   shape: BoxShape.circle,
                   color: Color(0xff404042),
                 ),
-                child: Image.asset("assets/images/c2_bg.png")),
+                child: Image.asset("assets/images/c2_bg.png"),
+              ),
               SizedBox(height: 4),
               Text(
                 'Main Menu',
                 style: TextStyle(
                   color: Colors.black54,
                   fontSize: 12,
-                  fontWeight: FontWeight.w600
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
-        
+
         // Right Column: Control Buttons and Cure Cycle section
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -354,61 +351,63 @@ void dispose() {
               children: [
                 // Show Play button only when not playing
                 if (!_isPlaying)
-                  _buildControlButton('Start', onTap: _startCountdown),
-                
+                  _buildControlButton('Start', onTap: _currentData?.cycle == CureCycle.store ? _advanceToNextCycle : _controller.play),
+
                 // Show Pause button only when playing
                 if (_isPlaying)
-                  _buildControlButton('Pause', onTap: _pauseCountdown),
-                
+                  _buildControlButton('Pause', onTap: _controller.pause),
+
                 SizedBox(width: 8),
-                _buildControlButton('Reset', onTap: _resetCountdown),
+                if (_currentData != null && _currentData?.cycle != CureCycle.store)
+                  _buildControlButton('Reset', onTap: _controller.restart),
               ],
             ),
-            
-            SizedBox(height: 20),
-            
-            // Cure Cycle Title and Duration (moved here)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  'CURE CYCLE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 35,
-                    fontWeight: FontWeight.bold,
-                    height: 0.8, //
+            if (_currentData?.cycle != CureCycle.store) SizedBox(height: 20),
+
+            if (_currentData != null && _currentData?.cycle != CureCycle.store)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _currentData?.cycle == CureCycle.cure
+                        ? 'CURE CYCLE'
+                        : 'DRY CYCLE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 35,
+                      fontWeight: FontWeight.bold,
+                      height: 0.8, //
+                    ),
                   ),
-                ),
-                Text(
-                  'Duration ${formatSecondsToCountdown(_totalSeconds)}',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
+                  Text(
+                    'Duration ${formatSecondsToCountdown(_totalSeconds)}',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                SizedBox(height: 5),
-                GestureDetector(
-                  onTap: _advanceToStore,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Advance to Store',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 18,
+                  SizedBox(height: 5),
+                  GestureDetector(
+                    onTap: _advanceToNextCycle,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Advance to ${_currentData?.cycle == CureCycle.cure ? 'Store' : 'Cure'}',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 18,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Image.asset("assets/images/next.png")
-                    ],
+                        SizedBox(width: 8),
+                        Image.asset("assets/images/next.png"),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ],
@@ -418,11 +417,13 @@ void dispose() {
   Widget _buildParameterDisplaySection(String name, double value) {
     // Round to 1 decimal place
     double roundedValue = (value * 10).round() / 10;
-    
+
     // Split into whole number and decimal parts
     int wholeNumber = roundedValue.floor();
-    String decimal = (roundedValue - wholeNumber).toStringAsFixed(1).substring(1);
-    
+    String decimal = (roundedValue - wholeNumber)
+        .toStringAsFixed(1)
+        .substring(1);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -445,7 +446,7 @@ void dispose() {
                 fontSize: 64,
                 fontWeight: FontWeight.w700,
               ),
-            )
+            ),
           ],
         ),
         Transform.translate(
@@ -459,7 +460,7 @@ void dispose() {
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: 24,
-                    fontWeight: FontWeight.w500
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -497,10 +498,7 @@ void dispose() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Image.asset(
-          'assets/images/logo.png',
-          height: 40,
-        ),
+        Image.asset('assets/images/logo.png', height: 40),
         GestureDetector(
           onTap: () {
             // Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsScreen()));
@@ -521,7 +519,7 @@ void dispose() {
                       style: TextStyle(
                         color: Colors.black87,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -529,7 +527,7 @@ void dispose() {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -537,7 +535,7 @@ void dispose() {
               ),
             ),
           ),
-        )
+        ),
       ],
     );
   }
@@ -548,16 +546,18 @@ void dispose() {
       child: Column(
         children: [
           Image.asset(
-            label == 'Start' ? "assets/images/start.png" :
-            label == 'Pause' ? "assets/images/pause.png" :
-            "assets/images/reset.png",
+            label == 'Start'
+                ? "assets/images/start.png"
+                : label == 'Pause'
+                ? "assets/images/pause.png"
+                : "assets/images/reset.png",
           ),
           Text(
             label,
             style: TextStyle(
               color: Colors.black54,
               fontSize: 12,
-              fontWeight: FontWeight.w700
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

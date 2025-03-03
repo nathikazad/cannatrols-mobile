@@ -82,6 +82,13 @@ class StubCureDataService implements CureDataService {
     _connectionStatusController.close();
   }
 
+  @override
+  void publishMessage(String topic, Map<String, dynamic> message) {
+    // For testing, you can just log the message or handle it as needed
+    print('StubService: Publishing to $topic: $message');
+    // You might want to handle this message in some way in your stub
+  }
+
   // Start the simulation
   void _startSimulation() {
     _simulationTimer?.cancel();
@@ -143,6 +150,7 @@ class StubCureDataService implements CureDataService {
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft - 2,
+      isPlaying: _currentData.isPlaying,
     );
   }
 
@@ -158,6 +166,7 @@ class StubCureDataService implements CureDataService {
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft - 2,
+      isPlaying: _currentData.isPlaying,
     );
   }
 
@@ -173,6 +182,7 @@ class StubCureDataService implements CureDataService {
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft - 2,
+      isPlaying: _currentData.isPlaying,
     );
   }
 
@@ -188,6 +198,7 @@ class StubCureDataService implements CureDataService {
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft - 2,
+      isPlaying: _currentData.isPlaying,
     );
   }
 

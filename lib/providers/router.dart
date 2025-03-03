@@ -1,6 +1,7 @@
 // router.dart
 import 'package:flutter_app/ble_screen.dart';
 import 'package:flutter_app/screens/device_screen.dart';
+import 'package:flutter_app/screens/home.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import './auth.dart';
@@ -31,17 +32,15 @@ final routerProvider = Provider((ref) {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const Home(),
       ),
       GoRoute(
         path: '/ble',
         builder: (context, state) =>  BluetoothScreen(),
       ),
       GoRoute(
-        path: '/mqtt/:deviceId',  // The colon indicates a path parameter
-        builder: (context, state) => DevicesScreen(
-          deviceId: state.pathParameters['deviceId'] ?? '',
-        ),
+        path: '/device', 
+        builder: (context, state) => DevicesScreen(),
       )
     ],
   );

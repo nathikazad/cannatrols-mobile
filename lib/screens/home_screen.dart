@@ -1,4 +1,6 @@
+// home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_app/providers/device_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -83,7 +85,8 @@ class HomeScreen extends ConsumerWidget {
                           leading: const Icon(Icons.devices),
                           title: Text('Device: $deviceId'),
                           trailing: const Icon(Icons.arrow_forward),
-                          onTap: () => context.push('/mqtt/$deviceId'),
+                          onTap: () => ref.read(selectedDeviceProvider.notifier).selectDevice(deviceId),
+                          // onTap: () => context.push('/mqtt/$deviceId'),
                         ),
                       );
                     },

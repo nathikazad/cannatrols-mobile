@@ -22,6 +22,7 @@ class EnvironmentalData {
   final CureCycle cycle;
   final int timeLeft;
   final DateTime timestamp;
+  final bool isPlaying;
 
   EnvironmentalData({
     required this.temperature,
@@ -29,7 +30,8 @@ class EnvironmentalData {
     required this.humidity,
     required this.timestamp,
     required this.cycle,
-    required this.timeLeft
+    required this.timeLeft,
+    required this.isPlaying
   });
 
   // Create from JSON map
@@ -41,6 +43,7 @@ class EnvironmentalData {
       cycle: stringToCureCycle("store"),
       timeLeft: 0,
       timestamp: DateTime.now(),
+      isPlaying: false
     );
   }
 
@@ -53,6 +56,7 @@ class EnvironmentalData {
       timeLeft: 248940,
       cycle: CureCycle.store,
       timestamp: DateTime.now(),
+      isPlaying: false
     );
   }
 
@@ -63,7 +67,8 @@ class EnvironmentalData {
     int? humidity,
     DateTime? timestamp,
     CureCycle? cycle,
-    int? timeLeft
+    int? timeLeft,
+    bool? isPlaying
   }) {
     return EnvironmentalData(
       temperature: temperature ?? this.temperature,
@@ -71,7 +76,8 @@ class EnvironmentalData {
       humidity: humidity ?? this.humidity,
       timestamp: timestamp ?? this.timestamp,
       timeLeft: timeLeft ?? this.timeLeft,
-      cycle: cycle ?? this.cycle
+      cycle: cycle ?? this.cycle,
+      isPlaying: isPlaying ?? this.isPlaying
     );
   }
 }
@@ -100,6 +106,9 @@ abstract class CureDataService {
   
   // Disconnect from the device
   Future<void> disconnect();
+
+  // Publish a message to a topic
+  void publishMessage(String topic, Map<String, dynamic> message);
   
   // Dispose resources
   void dispose();

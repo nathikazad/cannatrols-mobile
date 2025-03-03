@@ -1,3 +1,4 @@
+// mqtt2.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -165,6 +166,12 @@ class MqttCureDataService implements CureDataService {
         // Handle parsing errors
       }
     });
+  }
+
+  // Publish a json   message to a topic
+  void publishMessage(String topic, Map<String, dynamic> message) {
+    final jsonString = jsonEncode(message);
+    _client.publishMessage(topic, MqttQos.atLeastOnce, MqttClientPayloadBuilder().addString(jsonString).payload!);
   }
   
   // Disconnection handler
