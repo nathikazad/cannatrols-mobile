@@ -121,25 +121,14 @@ class MqttCureDataService implements CureDataService {
   // Fetch MQTT credentials from Supabase Edge Function
   Future<Map<String, dynamic>?> _fetchMQTTCredentials() async {
     try {
-      // Get the auth token for the current user
-      final token = supabase.auth.currentSession?.accessToken;
-      if (token == null) {
-        return null;
-      }
-      
-      // Call the edge function
-      final response = await http.post(
-        Uri.parse("https://edlquuxypulyedwgweai.supabase.co/functions/v1/get-mqtt"),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkbHF1dXh5cHVseWVkd2d3ZWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk0Nzg3OTAsImV4cCI6MjA1NTA1NDc5MH0.EL4k_9sOoD9NR6sjVnJj0IjT5SoRYsDrktsdPH1dTgo'
-        },
+      // Call the edge function using the Supabase client SDK
+      final response = await supabase.functions.invoke(
+        'get-mqtt',
+        // No need to pass any parameters as the function likely uses the authenticated user
       );
       
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['data'];
+      if (response.status == 200) {
+        return response.data;
       } else {
         return null;
       }

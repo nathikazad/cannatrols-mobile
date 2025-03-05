@@ -31,12 +31,7 @@ class DeviceSelectScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  menuButton('SYSTEM SELECTION', Color(0xFF9C27B0), () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => DeviceSelectScreen()),
-                    );
-                  }),
+                  menuButton('SYSTEM SELECTION', Color(0xFF9C27B0), () {}),
 
                 ],
               ),
