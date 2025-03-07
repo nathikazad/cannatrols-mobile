@@ -45,12 +45,12 @@ class EnvironmentalData {
   factory EnvironmentalData.fromJson(Map<String, dynamic> json) {
     return EnvironmentalData(
       temperature: (json['temperature'] as num).toDouble(),
-      dewPoint: 0.0,//(json['dewPoint'] as num).toDouble(),
-      humidity: 0,//(json['humidity'] as num).toInt(),
-      cycle: stringToCureCycle("store"),
-      timeLeft: 0,
+      dewPoint: (json['dewPoint'] as num).toDouble(),
+      humidity: (json['humidity'] as num).toInt(),
+      cycle: stringToCureCycle(json["cycle"]),
+      timeLeft: (json['timeLeft'] as num).toInt(),
       timestamp: DateTime.now(),
-      isPlaying: false
+      isPlaying: (json['isPlaying'] as bool)
     );
   }
 

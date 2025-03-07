@@ -283,7 +283,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             ),
           ),
         ),
-        Container(
+        SizedBox(
           width: 180,
           child: SliderTheme(
             data: SliderThemeData(

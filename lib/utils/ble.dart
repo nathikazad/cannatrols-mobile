@@ -209,7 +209,7 @@ class BluetoothManager {
     if (text.isEmpty || _rxCharacteristic == null) return;
 
     try {
-      List<int> bytes = utf8.encode(text + "\n");
+      List<int> bytes = utf8.encode("$text\n");
       await _rxCharacteristic!.write(bytes);
 
       if (_state.isAuthenticated) {

@@ -84,7 +84,7 @@ class DeviceSelectScreen extends ConsumerWidget {
 
   Widget _buildDeviceList(WidgetRef ref) {
     // Fixed height container instead of Expanded
-    return Container(
+    return SizedBox(
       height: 200, // Fixed height - adjust this value as needed
       child: FutureBuilder<List<Device>>(
         future: ref.read(selectedDeviceProvider.notifier).getDevices(),
@@ -128,7 +128,7 @@ class DeviceSelectScreen extends ConsumerWidget {
                             Image.asset("assets/images/next.png", height: 24),
                             SizedBox(width: 8),
                             Text(
-                              '${device.name}',
+                              device.name,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 20.0,

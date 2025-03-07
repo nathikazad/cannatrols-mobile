@@ -9,6 +9,8 @@ import 'utils/ble.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class BluetoothScreen extends ConsumerStatefulWidget {
+  const BluetoothScreen({super.key});
+
   @override
   ConsumerState<BluetoothScreen> createState() => _BluetoothScreenState();
 }
@@ -318,7 +320,7 @@ class _BluetoothScreenState extends ConsumerState<BluetoothScreen> {
       }
     } catch (e) {
       Navigator.pop(context); // Close the loading dialog
-      throw e; // Re-throw to be caught by the caller
+      rethrow; // Re-throw to be caught by the caller
     }
   }
 
@@ -418,10 +420,10 @@ class _BluetoothScreenState extends ConsumerState<BluetoothScreen> {
         style: TextButton.styleFrom(
           backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
         ),
-        child: Icon(Icons.add),
         onPressed: deviceId != null 
           ? () => _showAddDeviceDialog(deviceId, scanResult.device.platformName)
           : null,
+        child: Icon(Icons.add), 
       ),
     );
   }

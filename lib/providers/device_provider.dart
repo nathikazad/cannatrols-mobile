@@ -65,7 +65,7 @@ class DeviceNotifier extends StateNotifier<Device?> {
       }
     } catch (e) {
       print('Error adding device: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -80,7 +80,7 @@ class DeviceNotifier extends StateNotifier<Device?> {
           .eq('user_id', userId);
     } catch (e) {
       print('Error updating device: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -95,7 +95,7 @@ class DeviceNotifier extends StateNotifier<Device?> {
           .eq('user_id', userId);
     } catch (e) {
       print('Error removing device: $e');
-      throw e;
+      rethrow;
     }
   }
 }

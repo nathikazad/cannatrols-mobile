@@ -15,7 +15,7 @@ class MqttCureDataService implements CureDataService {
   
   // MQTT configuration
   String _host = '';
-  int _port = 8883;
+  final int _port = 8883;
   String _username = '';
   String _password = '';
   String _identifier = '';
@@ -44,6 +44,7 @@ class MqttCureDataService implements CureDataService {
   
   @override
   Future<void> connect(String deviceId) async {
+    print("Connecting to MQTT");
     // Check if already connected to the same device
     if (_connectionStatus == ConnectionStatus.connected && _deviceId == deviceId) {
       return;
@@ -58,26 +59,29 @@ class MqttCureDataService implements CureDataService {
     _updateConnectionStatus(ConnectionStatus.connecting);
     
     // Fetch credentials
-    final credentials = await _fetchMQTTCredentials();
-    if (credentials == null) {
+    final Map<String, dynamic>? credentials = await _fetchMQTTCredentials();
+    if (credentials == null || credentials['data'] == null) {
       _updateConnectionStatus(ConnectionStatus.error);
       return;
     }
     
     // Set credentials
     final userId = supabase.auth.currentUser!.id;
-    _host = credentials['host'];
-    _username = credentials['username'];
-    _password = credentials['password'];
+    _host = credentials['data']['host'];
+    _username = credentials['data']['username'];
+    _password = credentials['data']['password'];
     _identifier = 'flutter_${userId}_${DateTime.now().millisecondsSinceEpoch}';
-    _topic = "$userId/$deviceId/state";
+    final user_id = supabase.auth.currentUser!.id;
+    _topic = "$user_id/$deviceId/state";
     
     // Connect to MQTT
     try {
       _setupMqttClient();
+      print("Connecting to MQTT");
       await _client.connect(_username, _password);
     } catch (e) {
       _updateConnectionStatus(ConnectionStatus.error);
+      print("Error connecting to MQTT: $e");
       return;
     }
     
@@ -120,29 +124,30 @@ class MqttCureDataService implements CureDataService {
   
   // Fetch MQTT credentials from Supabase Edge Function
   Future<Map<String, dynamic>?> _fetchMQTTCredentials() async {
+    print("Fetching MQTT credentials");
     try {
       // Call the edge function using the Supabase client SDK
       final response = await supabase.functions.invoke(
         'get-mqtt',
         // No need to pass any parameters as the function likely uses the authenticated user
       );
-      
+      // print("Response: $response");
       if (response.status == 200) {
         return response.data;
       } else {
         return null;
       }
     } catch (e) {
+      print("Error fetching MQTT credentials: $e");
       return null;
     }
   }
-  
   // Subscribe to a topic
   void _subscribeToTopic(String topicName) {
     _client.subscribe(topicName, MqttQos.atLeastOnce);
-    
     // Listen for messages
     _client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
+      
       final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
       final String payload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       
@@ -153,11 +158,13 @@ class MqttCureDataService implements CureDataService {
         _dataStreamController.add(environmentalData);
       } catch (e) {
         // Handle parsing errors
+        print("Error parsing message: $e");
       }
     });
   }
 
   // Publish a json   message to a topic
+  @override
   void publishMessage(String topic, Map<String, dynamic> message) {
     final jsonString = jsonEncode(message);
     _client.publishMessage(topic, MqttQos.atLeastOnce, MqttClientPayloadBuilder().addString(jsonString).payload!);

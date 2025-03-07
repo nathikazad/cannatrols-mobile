@@ -10,7 +10,7 @@ import 'package:go_router/go_router.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
   final Device device;
-  const DevicesScreen({Key? key, required this.device}) : super(key: key);
+  const DevicesScreen({super.key, required this.device});
 
   @override
   ConsumerState<DevicesScreen> createState() => _DeviceScreenState();
@@ -529,7 +529,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '${widget.device.name}',
+                      widget.device.name,
                       style: TextStyle(
                         color: Colors.black87,
                         fontSize: 12,

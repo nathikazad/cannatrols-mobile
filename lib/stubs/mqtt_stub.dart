@@ -288,7 +288,7 @@ class StubCureDataService implements CureDataService {
 class StubControls extends ConsumerWidget {
   final String deviceId;
 
-  const StubControls({Key? key, required this.deviceId}) : super(key: key);
+  const StubControls({super.key, required this.deviceId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -303,7 +303,7 @@ class StubControls extends ConsumerWidget {
     final currentTemperature = controller.currentData?.temperature ?? 68.0;
     final currentDewPoint = controller.currentData?.dewPoint ?? 54.0;
     final currentHumidity =
-        controller.currentData?.humidity?.toDouble() ?? 57.0;
+        controller.currentData?.humidity.toDouble() ?? 57.0;
 
     return ExpansionTile(
       title: const Text('Debug Controls'),
@@ -397,7 +397,7 @@ class StubControls extends ConsumerWidget {
           ),
         ),
         // Connection status controls remain unchanged
-        ButtonBar(
+        OverflowBar(
           alignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(

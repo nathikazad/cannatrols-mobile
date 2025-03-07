@@ -5,7 +5,7 @@ import 'package:flutter_app/utils/mqtt2.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
-bool simulateData = true;
+bool simulateData = false;
 
 
 // Provider for the device data service
