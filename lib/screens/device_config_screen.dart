@@ -46,6 +46,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       int totalSeconds = widget.environmentalData!.timeLeft;
       daysValue = (totalSeconds / (24 * 3600)).floorToDouble();
       hoursValue = ((totalSeconds % (24 * 3600)) / 3600).floorToDouble();
+      stepMode = widget.environmentalData!.targetStepMode;
     }
   }
 
