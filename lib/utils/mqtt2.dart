@@ -14,13 +14,15 @@ class MqttCureDataService implements CureDataService {
   late MqttServerClient _client;
   
   // MQTT configuration
-  String _host = '';
-  final int _port = 8883;
-  String _username = '';
-  String _password = '';
-  String _identifier = '';
+  // late String _host;
+  // final int _port = 8883;
+  // late String _username;
+  // late String _password;
+  // late String _identifier;
+  // late String _userId;
   String? _deviceId;
-  String _topic = "";
+  // late String _stateTopic;
+  // late String _commandTopic;
   
   // Stream controllers
   final _dataStreamController = StreamController<EnvironmentalData>.broadcast();
@@ -28,7 +30,6 @@ class MqttCureDataService implements CureDataService {
   
   // Current state
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
-  EnvironmentalData _lastData = EnvironmentalData.initial();
   
   // Get Supabase instance
   final supabase = Supabase.instance.client;
@@ -46,7 +47,7 @@ class MqttCureDataService implements CureDataService {
   Future<void> connect(String deviceId) async {
     print("Connecting to MQTT");
     // Check if already connected to the same device
-    if (_connectionStatus == ConnectionStatus.connected && _deviceId == deviceId) {
+    if (_connectionStatus == ConnectionStatus.connected) {
       return;
     }
     
@@ -67,18 +68,17 @@ class MqttCureDataService implements CureDataService {
     
     // Set credentials
     final userId = supabase.auth.currentUser!.id;
-    _host = credentials['data']['host'];
-    _username = credentials['data']['username'];
-    _password = credentials['data']['password'];
-    _identifier = 'flutter_${userId}_${DateTime.now().millisecondsSinceEpoch}';
-    final user_id = supabase.auth.currentUser!.id;
-    _topic = "$user_id/$deviceId/state";
+    String host = credentials['data']['host'];
+    String username = credentials['data']['username'];
+    String password = credentials['data']['password'];
+    String identifier = 'flutter_${userId}_${DateTime.now().millisecondsSinceEpoch}';
+    String stateTopic = "$userId/$deviceId/state";
     
     // Connect to MQTT
     try {
-      _setupMqttClient();
+      _setupMqttClient(host, identifier, 8883);
       print("Connecting to MQTT");
-      await _client.connect(_username, _password);
+      await _client.connect(username, password);
     } catch (e) {
       _updateConnectionStatus(ConnectionStatus.error);
       print("Error connecting to MQTT: $e");
@@ -88,7 +88,7 @@ class MqttCureDataService implements CureDataService {
     // Check connection status
     if (_client.connectionStatus!.state == MqttConnectionState.connected) {
       _updateConnectionStatus(ConnectionStatus.connected);
-      _subscribeToTopic(_topic);
+      _subscribeToTopic(stateTopic);
     } else {
       _updateConnectionStatus(ConnectionStatus.error);
     }
@@ -113,8 +113,8 @@ class MqttCureDataService implements CureDataService {
   }
   
   // Set up MQTT client
-  void _setupMqttClient() {
-    _client = MqttServerClient.withPort(_host, _identifier, _port);
+  void _setupMqttClient(String host, String identifier, int port) {
+    _client = MqttServerClient.withPort(host, identifier, port);
     _client.secure = true;
     _client.securityContext = SecurityContext.defaultContext;
     _client.keepAlivePeriod = 20;
@@ -151,23 +151,25 @@ class MqttCureDataService implements CureDataService {
       final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
       final String payload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       
-      try {
+      // try {
         final Map<String, dynamic> data = jsonDecode(payload);
         final EnvironmentalData environmentalData = EnvironmentalData.fromJson(data);
-        _lastData = environmentalData;
         _dataStreamController.add(environmentalData);
-      } catch (e) {
-        // Handle parsing errors
-        print("Error parsing message: $e");
-      }
+      // } catch (e) {
+      //   // Handle parsing errors
+      //   print("Error parsing message: $e");
+      // }
     });
   }
 
   // Publish a json   message to a topic
   @override
-  void publishMessage(String topic, Map<String, dynamic> message) {
+  void publishMessage(Map<String, dynamic> message) {
+    final userId = supabase.auth.currentUser!.id;
+    String commandTopic = "$userId/$_deviceId/command"; 
     final jsonString = jsonEncode(message);
-    _client.publishMessage(topic, MqttQos.atLeastOnce, MqttClientPayloadBuilder().addString(jsonString).payload!);
+    print("Publishing message: $jsonString to topic: $commandTopic");
+    _client.publishMessage(commandTopic, MqttQos.atLeastOnce, MqttClientPayloadBuilder().addString(jsonString).payload!);
   }
   
   // Disconnection handler

@@ -87,32 +87,37 @@ class CureDataController {
     stubService?.setScenario(scenario);
   }
 
-  void publishMessage(String topic, Map<String, dynamic> message) {
-    _service.publishMessage(topic, message);
+  void publishMessage(Map<String, dynamic> message) {   
+    _service.publishMessage(message);
   }
 
   void advanceToDryCycle() {
-    publishMessage('command', {'command': 'advanceCycle', 'cycle': 'dry'});
+    publishMessage({'command': 'advanceCycle', 'cycle': 'dry'});
   }
 
   void advanceToCureCycle() {
-    publishMessage('command', {'command': 'advanceCycle', 'cycle': 'cure'});
+    publishMessage({'command': 'advanceCycle', 'cycle': 'cure'});
   }
 
   void advanceToStore() {
-    publishMessage('command', {'command': 'advanceCycle', 'cycle': 'store'});
+    publishMessage({'command': 'advanceCycle', 'cycle': 'store'});
   }
 
   void restart() {
-    publishMessage('command', {'command': 'restart'});
+    publishMessage({'command': 'restart'});
   }
 
   void play() {
-    publishMessage('command', {'command': 'play'});
+    publishMessage({'command': 'play'});
   }
 
   void pause() {
-    publishMessage('command', {'command': 'pause'});
+    publishMessage({'command': 'pause'});
+  }
+
+  void updateDeviceConfiguration({required double temperature, required double dewPoint, required int timeInSeconds, required StepMode stepMode}) {
+    print('Updating device configuration: $temperature, $dewPoint, $timeInSeconds, $stepMode');
+    publishMessage({'command': 'setTargets', 'targetTemperature': temperature, 'targetDewPoint': dewPoint, 'stepMode': stepModeToString(stepMode), 'targetTime': timeInSeconds});
   }
 
   // In CureDataController class in cure_controller.dart

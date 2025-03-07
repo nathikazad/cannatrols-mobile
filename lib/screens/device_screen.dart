@@ -31,6 +31,10 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
   late final Device _device;
   Timer? _timer;
 
+  // Add these variables to track stream subscriptions
+  StreamSubscription? _connectionStatusSubscription;
+  StreamSubscription? _dataStreamSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -53,22 +57,26 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   Future<void> _connectToDevice() async {
     // Set up connection status listener
-    _controller.connectionStatusStream.listen((status) {
-      if (status == ConnectionStatus.error) {
-        setState(() {
-          _connectionError = 'Failed to connect to device. Please try again.';
-        });
+    _connectionStatusSubscription = _controller.connectionStatusStream.listen((status) {
+      if (mounted) {  // Check if widget is still mounted
+        if (status == ConnectionStatus.error) {
+          setState(() {
+            _connectionError = 'Failed to connect to device. Please try again.';
+          });
+        }
       }
     });
 
     // Set up data listener
-    _controller.dataStream.listen((data) {
-      setState(() {
-        _totalSeconds = data.timeLeft;
-        _currentData = data;
-        _isDataReady = true;
-        _connectionError = null;
-      });
+    _dataStreamSubscription = _controller.dataStream.listen((data) {
+      if (mounted) {  // Check if widget is still mounted
+        setState(() {
+          _totalSeconds = data.timeLeft;
+          _currentData = data;
+          _isDataReady = true;
+          _connectionError = null;
+        });
+      }
     });
 
     // Attempt to connect
@@ -77,8 +85,12 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   @override
   void dispose() {
-
+    // Cancel timer
     _timer?.cancel();
+    
+    // Cancel stream subscriptions
+    _connectionStatusSubscription?.cancel();
+    _dataStreamSubscription?.cancel();
 
     _controller.disconnect();
     super.dispose();
@@ -143,6 +155,9 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
   }
 
   void _navigateToDeviceConfig() async {
+    if (_currentData == null) {
+      return;
+    }
     // Navigate to config screen and await result
     final result = await GoRouter.of(context).push<Map<String, dynamic>>(
       '/device_config',
@@ -154,15 +169,15 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
       double temperature = result['temperature'];
       double dewPoint = result['dewPoint'];
       int timeInSeconds = result['timeInSeconds'];
-      bool stepMode = result['stepMode'];
+      StepMode stepMode = result['stepMode'];
       
       // Update device with new configuration values
-      // _controller.updateDeviceConfiguration(
-      //   temperature: temperature,
-      //   dewPoint: dewPoint,
-      //   timeInSeconds: timeInSeconds,
-      //   stepMode: stepMode,
-      // );
+      _controller.updateDeviceConfiguration(
+        temperature: temperature,
+        dewPoint: dewPoint,
+        timeInSeconds: timeInSeconds,
+        stepMode: stepMode,
+      );
     }
   }
 
@@ -537,7 +552,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                       ),
                     ),
                     Text(
-                      'EDIT SETTING',
+                      (_currentData == null) ? '' :'EDIT SETTING',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,

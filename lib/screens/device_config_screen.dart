@@ -19,15 +19,28 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
   double daysValue = 60.0;
   double dewPointValue = 54.0;
   double hoursValue = 20.0;
-  bool stepOn = true;
+  StepMode stepMode = StepMode.step;
 
   @override
   void initState() {
     super.initState();
     // Initialize values from provided data if available
     if (widget.environmentalData != null) {
-      temperatureValue = widget.environmentalData!.temperature;
-      dewPointValue = widget.environmentalData!.dewPoint;
+      temperatureValue = widget.environmentalData!.targetTemperature;
+      dewPointValue = widget.environmentalData!.targetDewPoint;
+      if (temperatureValue < 58) {
+        temperatureValue = 58;
+      }
+      if (temperatureValue > 76) {
+        temperatureValue = 76;
+      }
+      if (dewPointValue < 45) {
+        dewPointValue = 45;
+      }
+      if (dewPointValue > 65) {
+        dewPointValue = 65;
+      }
+      
       
       // Convert seconds to days and hours
       int totalSeconds = widget.environmentalData!.timeLeft;
@@ -38,8 +51,10 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
 
   // Calculate total seconds from days and hours
   int getTotalSeconds() {
-    int daysInSeconds = (daysValue * 24 * 60 * 60).toInt();
-    int hoursInSeconds = (hoursValue * 60 * 60).toInt();
+    int days = (daysValue == 0 ? 1 : daysValue).toInt();
+    int hours = (hoursValue == 0 ? 1 : hoursValue).toInt();
+    int daysInSeconds = (days * 24 * 60 * 60).toInt();
+    int hoursInSeconds = (hours * 60 * 60).toInt();
     return daysInSeconds + hoursInSeconds;
   }
 
@@ -138,13 +153,13 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                     setState(() {
                       temperatureValue = val;
                     });
-                  }),
+                  }, 58, 76),
                   if (widget.environmentalData!.cycle != CureCycle.store)
                     buildSlider("Days", daysValue, (val) {
                       setState(() {
                         daysValue = val;
                       });
-                    }),
+                    }, 0, 23),
                 ],
               ),
               SizedBox(height: 50),
@@ -155,13 +170,13 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                     setState(() {
                       dewPointValue = val;
                     });
-                  }),
+                  }, 45, 65),
                   if (widget.environmentalData!.cycle != CureCycle.store)
                     buildSlider("Hours", hoursValue, (val) {
                       setState(() {
                         hoursValue = val;
                       });
-                    }),
+                    }, 0, 23),
                 ],
               ),
               SizedBox(height:38,),
@@ -169,12 +184,12 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildRadioOption('Step', stepOn, () {
-                    setState(() => stepOn = true);
+                  _buildRadioOption('Step', stepMode == StepMode.step, () {
+                    setState(() => stepMode = StepMode.step);
                   }),
                   const SizedBox(width: 40),
-                  _buildRadioOption('Slope', !stepOn, () {
-                    setState(() => stepOn = false);
+                  _buildRadioOption('Slope', stepMode == StepMode.slope, () {
+                    setState(() => stepMode = StepMode.slope);
                   }),
                 ],
               ),
@@ -191,10 +206,10 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                     GestureDetector(
                       onTap: () {
                         Navigator.pop(context, {
-                          'temperature': temperatureValue,
-                          'dewPoint': dewPointValue,
+                          'temperature': double.parse(temperatureValue.toStringAsFixed(1)),
+                          'dewPoint': double.parse(dewPointValue.toStringAsFixed(1)),
                           'timeInSeconds': getTotalSeconds(),
-                          'stepMode': stepOn,
+                          'stepMode': stepMode,
                         });
                       },
                       child: DottedBorder(
@@ -239,7 +254,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       ),
     );
   }
-  Widget buildSlider(String label, double value, Function(double) onChanged) {
+  Widget buildSlider(String label, double value, Function(double) onChanged, int min, int max) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -251,7 +266,9 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                (label == "Temperature" || label == "Dew Point") ? value.toDouble().toStringAsFixed(1) : value.toInt().toString(),
+                (label == "Temperature" || label == "Dew Point") 
+                    ? value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '.0') 
+                    : value.toInt().toString(),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 59,
@@ -296,8 +313,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             ),
             child: Slider(
               value: value,
-              min: 0,
-              max: 100,
+              min: min.toDouble(),
+              max: max.toDouble(),
               onChanged: onChanged,
             ),
           ),

@@ -33,6 +33,10 @@ class StubCureDataService implements CureDataService {
   Timer? _simulationTimer;
   final Random _random = Random();
   int _simulationStep = 0;
+  StepMode _stepMode = StepMode.step;
+  double _targetTemperature = 68.0;
+  double _targetDewPoint = 57.0;
+  int _targetTime = 248940;
 
   // Configuration
   final Duration updateInterval;
@@ -83,10 +87,69 @@ class StubCureDataService implements CureDataService {
   }
 
   @override
-  void publishMessage(String topic, Map<String, dynamic> message) {
-    // For testing, you can just log the message or handle it as needed
-    print('StubService: Publishing to $topic: $message');
-    // You might want to handle this message in some way in your stub
+  void publishMessage(Map<String, dynamic> message) {
+    // Log the message for debugging
+    print('StubService: Publishing message: $message');
+    
+    // Process the command similar to how the hardware would
+    String command = message['command'];
+    
+    if (command == 'advanceCycle') {
+      
+      // Update the current data
+      _currentData = _currentData.copyWith(
+        cycle: stringToCureCycle(message['cycle']),
+        timeLeft: 0,
+      );
+      
+      // Emit the updated data
+      _dataStreamController.add(_currentData);
+    } 
+    else if (command == 'setTargets') {
+      // Update target values
+      _targetTemperature = message['targetTemperature'];
+      _targetDewPoint = message['targetDewPoint'];
+      _targetTime = message['targetTime'];
+      _stepMode = stringToStepMode(message['stepMode']);
+      
+      // Update the current data with new targets
+      _currentData = _currentData.copyWith(
+        targetTemperature: _targetTemperature,
+        targetDewPoint: _targetDewPoint,
+        targetStepMode: _stepMode,
+        targetTime: _targetTime,
+      );
+      
+      // Emit the updated data
+      _dataStreamController.add(_currentData);
+    } 
+    else if (command == 'pause') {
+      // Update playing state
+      _currentData = _currentData.copyWith(isPlaying: false);
+      _dataStreamController.add(_currentData);
+    } 
+    else if (command == 'play') {
+      // If timeLeft is 0, reset it to targetTime
+      int timeLeft = _currentData.timeLeft;
+      if (timeLeft == 0) {
+        timeLeft = _targetTime;
+      }
+      
+      // Update playing state and timeLeft
+      _currentData = _currentData.copyWith(
+        isPlaying: true,
+        timeLeft: timeLeft,
+      );
+      _dataStreamController.add(_currentData);
+    } 
+    else if (command == 'restart') {
+      // Reset timeLeft to targetTime and set playing to true
+      _currentData = _currentData.copyWith(
+        isPlaying: true,
+        timeLeft: _targetTime,
+      );
+      _dataStreamController.add(_currentData);
+    }
   }
 
   // Start the simulation
@@ -133,6 +196,10 @@ class StubCureDataService implements CureDataService {
         newData = _generateStableData();
     }
 
+    if (_currentData.isPlaying && _currentData.timeLeft > 0 && _currentData.cycle != CureCycle.store) {
+      newData = newData.copyWith(timeLeft: _currentData.timeLeft - 2);
+    }
+
     // Update current data and emit
     _currentData = newData;
     _dataStreamController.add(newData);
@@ -149,8 +216,12 @@ class StubCureDataService implements CureDataService {
       ),
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
-      timeLeft: _currentData.timeLeft - 2,
+      timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
+      targetTemperature: _targetTemperature,
+      targetDewPoint: _targetDewPoint,
+      targetStepMode: _stepMode,
+      targetTime: _targetTime,
     );
   }
 
@@ -165,8 +236,12 @@ class StubCureDataService implements CureDataService {
       ),
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
-      timeLeft: _currentData.timeLeft - 2,
+      timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
+      targetTemperature: _targetTemperature,
+      targetDewPoint: _targetDewPoint,
+      targetStepMode: _stepMode,
+      targetTime: _targetTime,
     );
   }
 
@@ -181,8 +256,12 @@ class StubCureDataService implements CureDataService {
       ),
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
-      timeLeft: _currentData.timeLeft - 2,
+      timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
+      targetTemperature: _targetTemperature,
+      targetDewPoint: _targetDewPoint,
+      targetStepMode: _stepMode,
+      targetTime: _targetTime,
     );
   }
 
@@ -197,8 +276,12 @@ class StubCureDataService implements CureDataService {
       ),
       timestamp: DateTime.now(),
       cycle: _currentData.cycle,
-      timeLeft: _currentData.timeLeft - 2,
+      timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
+      targetTemperature: _targetTemperature,
+      targetDewPoint: _targetDewPoint,
+      targetStepMode: _stepMode,
+      targetTime: _targetTime,
     );
   }
 

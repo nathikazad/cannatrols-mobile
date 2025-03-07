@@ -21,6 +21,21 @@ class Device {
   Device({required this.id, required this.name});
 }
 
+enum StepMode {
+  step,
+  slope
+}
+
+StepMode stringToStepMode(String stepModeString) {
+  return StepMode.values.firstWhere(
+    (stepMode) => stepMode.toString().split('.').last == stepModeString,
+    orElse: () => StepMode.step, // Default value if not found
+  );
+}
+
+String stepModeToString(StepMode stepMode) {
+  return stepMode.toString().split('.').last;
+}
 // Data model for environmental data
 class EnvironmentalData {
   final double temperature;
@@ -31,6 +46,11 @@ class EnvironmentalData {
   final DateTime timestamp;
   final bool isPlaying;
 
+  final double targetTemperature;
+  final double targetDewPoint;
+  final StepMode targetStepMode;
+  final int targetTime;
+
   EnvironmentalData({
     required this.temperature,
     required this.dewPoint,
@@ -38,11 +58,16 @@ class EnvironmentalData {
     required this.timestamp,
     required this.cycle,
     required this.timeLeft,
-    required this.isPlaying
+    required this.isPlaying,
+    required this.targetTemperature,
+    required this.targetDewPoint,
+    required this.targetStepMode,
+    required this.targetTime
   });
 
   // Create from JSON map
   factory EnvironmentalData.fromJson(Map<String, dynamic> json) {
+    print(json);
     return EnvironmentalData(
       temperature: (json['temperature'] as num).toDouble(),
       dewPoint: (json['dewPoint'] as num).toDouble(),
@@ -50,7 +75,11 @@ class EnvironmentalData {
       cycle: stringToCureCycle(json["cycle"]),
       timeLeft: (json['timeLeft'] as num).toInt(),
       timestamp: DateTime.now(),
-      isPlaying: (json['isPlaying'] as bool)
+      isPlaying: (json['isPlaying'] as bool),
+      targetTemperature: (json['targetTemperature'] as num).toDouble(),
+      targetDewPoint: (json['targetDewPoint'] as num).toDouble(),
+      targetStepMode: stringToStepMode(json["stepMode"]),
+      targetTime: (json['targetTime'] as num).toInt()
     );
   }
 
@@ -63,7 +92,11 @@ class EnvironmentalData {
       timeLeft: 248940,
       cycle: CureCycle.store,
       timestamp: DateTime.now(),
-      isPlaying: false
+      isPlaying: false,
+      targetTemperature: 68.0,
+      targetDewPoint: 57.0,
+      targetStepMode: StepMode.step,
+      targetTime: 248940
     );
   }
 
@@ -75,7 +108,11 @@ class EnvironmentalData {
     DateTime? timestamp,
     CureCycle? cycle,
     int? timeLeft,
-    bool? isPlaying
+    bool? isPlaying,
+    double? targetTemperature,
+    double? targetDewPoint,
+    StepMode? targetStepMode,
+    int? targetTime
   }) {
     return EnvironmentalData(
       temperature: temperature ?? this.temperature,
@@ -84,7 +121,11 @@ class EnvironmentalData {
       timestamp: timestamp ?? this.timestamp,
       timeLeft: timeLeft ?? this.timeLeft,
       cycle: cycle ?? this.cycle,
-      isPlaying: isPlaying ?? this.isPlaying
+      isPlaying: isPlaying ?? this.isPlaying,
+      targetTemperature: targetTemperature ?? this.targetTemperature,
+      targetDewPoint: targetDewPoint ?? this.targetDewPoint,
+      targetStepMode: targetStepMode ?? this.targetStepMode,
+      targetTime: targetTime ?? this.targetTime,
     );
   }
 }
@@ -115,7 +156,7 @@ abstract class CureDataService {
   Future<void> disconnect();
 
   // Publish a message to a topic
-  void publishMessage(String topic, Map<String, dynamic> message);
+  void publishMessage(Map<String, dynamic> message);
   
   // Dispose resources
   void dispose();
