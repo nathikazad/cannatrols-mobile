@@ -40,6 +40,50 @@ StepMode stringToStepMode(String stepModeString) {
 String stepModeToString(StepMode stepMode) {
   return stepMode.toString().split('.').last;
 }
+
+class CureTargets {
+  final double temperature;
+  final double dewPoint;
+  final StepMode stepMode;
+  final int timeLeft;
+
+  CureTargets({
+    required this.temperature,
+    required this.dewPoint,
+    required this.stepMode,
+    required this.timeLeft,
+  });
+
+  factory CureTargets.fromJson(Map<String, dynamic> json, String cycle) {
+    String firstLetter = cycle.substring(0, 1);
+    print("${firstLetter}temp: ${json['${firstLetter}temp']}, ${firstLetter}dp: ${json['${firstLetter}dp']}, ${firstLetter}sm: ${json['${firstLetter}sm']}, ${firstLetter}time: ${json['${firstLetter}time']}");
+    return CureTargets(
+      temperature: (json['${firstLetter}temp'] as num).toDouble(),
+      dewPoint: (json['${firstLetter}dp'] as num).toDouble(),
+      stepMode: stringToStepMode(json["${firstLetter}sm"]),
+      timeLeft: (json['${firstLetter}time'] as num).toInt()
+    );
+  }
+
+  factory CureTargets.initial() {
+    return CureTargets(
+      temperature: 68.0,
+      dewPoint: 54.0,
+      stepMode: StepMode.step,
+      timeLeft: 25 * 3600,
+    );
+  }
+}
+
+Map<CureCycle, CureTargets> jsonToCureTargets(Map<String, dynamic> json) {
+  print(json);
+  return {
+    CureCycle.cure: CureTargets.fromJson(json, 'cure'),
+    CureCycle.dry: CureTargets.fromJson(json, 'dry'),
+    CureCycle.store: CureTargets.fromJson(json, 'store'),
+  };
+}
+
 // Data model for environmental data
 class CureState {
   final double temperature;
@@ -50,11 +94,6 @@ class CureState {
   final DateTime timestamp;
   final bool isPlaying;
 
-  final double targetTemperature;
-  final double targetDewPoint;
-  final StepMode targetStepMode;
-  final int targetTime;
-
   CureState({
     required this.temperature,
     required this.dewPoint,
@@ -63,10 +102,6 @@ class CureState {
     required this.cycle,
     required this.timeLeft,
     required this.isPlaying,
-    required this.targetTemperature,
-    required this.targetDewPoint,
-    required this.targetStepMode,
-    required this.targetTime
   });
 
   // Create from JSON map
@@ -80,10 +115,6 @@ class CureState {
       timeLeft: (json['timeLeft'] as num).toInt(),
       timestamp: DateTime.now(),
       isPlaying: (json['isPlaying'] as bool),
-      targetTemperature: (json['targetTemperature'] as num).toDouble(),
-      targetDewPoint: (json['targetDewPoint'] as num).toDouble(),
-      targetStepMode: stringToStepMode(json["stepMode"]),
-      targetTime: (json['targetTime'] as num).toInt()
     );
   }
 
@@ -97,10 +128,6 @@ class CureState {
       cycle: CureCycle.store,
       timestamp: DateTime.now(),
       isPlaying: false,
-      targetTemperature: 68.0,
-      targetDewPoint: 57.0,
-      targetStepMode: StepMode.step,
-      targetTime: 248940
     );
   }
 
@@ -113,10 +140,6 @@ class CureState {
     CureCycle? cycle,
     int? timeLeft,
     bool? isPlaying,
-    double? targetTemperature,
-    double? targetDewPoint,
-    StepMode? targetStepMode,
-    int? targetTime
   }) {
     return CureState(
       temperature: temperature ?? this.temperature,
@@ -126,10 +149,6 @@ class CureState {
       timeLeft: timeLeft ?? this.timeLeft,
       cycle: cycle ?? this.cycle,
       isPlaying: isPlaying ?? this.isPlaying,
-      targetTemperature: targetTemperature ?? this.targetTemperature,
-      targetDewPoint: targetDewPoint ?? this.targetDewPoint,
-      targetStepMode: targetStepMode ?? this.targetStepMode,
-      targetTime: targetTime ?? this.targetTime,
     );
   }
 }
@@ -140,6 +159,7 @@ enum ConnectionStatus {
   connecting,
   connected,
   error,
+  timedOut,
 }
 
 // Abstract interface for device data service
@@ -148,8 +168,14 @@ abstract class CureDataService {
   // Stream of environmental data
   Stream<CureState> get stateStream;
 
+  // Stream of cure targets
+  Stream<Map<CureCycle, CureTargets>> get cureTargetsStream;
+
   // Get current data
   CureState? get currentData;
+
+  // declare dictionary of cure cycles
+  Map<CureCycle, CureTargets> get cureTargets;
 
   // Stream of connection status updates
   Stream<ConnectionStatus> get connectionStatusStream;
@@ -162,6 +188,9 @@ abstract class CureDataService {
   
   // Disconnect from the device
   Future<void> disconnect();
+
+  // Ask for cure targets
+  Future<void> askForCureTargets();
 
   // Publish a message to a topic
   void publishMessage(Map<String, dynamic> message);

@@ -15,13 +15,17 @@ class MqttCureDataService implements CureDataService {
   
   String? _deviceId;
   CureState? _currentData;
-
+  Map<CureCycle, CureTargets> _cureTargets = {};
   // Stream controllers
   final _dataStreamController = StreamController<CureState>.broadcast();
   final _connectionStatusController = StreamController<ConnectionStatus>.broadcast();
+  final _cureTargetsStreamController = StreamController<Map<CureCycle, CureTargets>>.broadcast();
   
   // Current state
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
+
+  Timer? _timeoutTimer;
+  DateTime? _lastMessageTime;
   
   // Get Supabase instance
   final supabase = Supabase.instance.client;
@@ -31,7 +35,13 @@ class MqttCureDataService implements CureDataService {
   
   @override
   Stream<ConnectionStatus> get connectionStatusStream => _connectionStatusController.stream;
-  
+
+  @override
+  Stream<Map<CureCycle, CureTargets>> get cureTargetsStream => _cureTargetsStreamController.stream;
+
+  @override
+  Map<CureCycle, CureTargets> get cureTargets => _cureTargets;
+
   @override
   ConnectionStatus get connectionStatus => _connectionStatus;
 
@@ -67,7 +77,15 @@ class MqttCureDataService implements CureDataService {
     String username = credentials['data']['username'];
     String password = credentials['data']['password'];
     String identifier = 'flutter_${userId}_${DateTime.now().millisecondsSinceEpoch}';
-    String stateTopic = "$userId/$deviceId/state";
+
+    _lastMessageTime = DateTime.now();
+    _timeoutTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      print("Checking if MQTT connection timed out");
+      if (_lastMessageTime != null && _lastMessageTime!.isBefore(DateTime.now().subtract(Duration(seconds: 10)))) {
+        _updateConnectionStatus(ConnectionStatus.timedOut);
+        print("MQTT connection timed out");
+      }
+    });
     
     // Connect to MQTT
     try {
@@ -83,10 +101,17 @@ class MqttCureDataService implements CureDataService {
     // Check connection status
     if (_client.connectionStatus!.state == MqttConnectionState.connected) {
       _updateConnectionStatus(ConnectionStatus.connected);
-      _subscribeToTopic(stateTopic);
+      _subscribeToStateTopic();
+      askForCureTargets();
     } else {
       _updateConnectionStatus(ConnectionStatus.error);
+      // Otherwise keep trying with the timedOut status set by the timer
     }
+  }
+
+  @override
+  Future<void> askForCureTargets() async {
+    publishMessage({'command': 'getTargets'});
   }
   
   @override
@@ -95,6 +120,7 @@ class MqttCureDataService implements CureDataService {
         _connectionStatus == ConnectionStatus.connecting) {
       _client.disconnect();
       _currentData = null;
+      _cureTargets = {};
       _updateConnectionStatus(ConnectionStatus.disconnected);
     }
   }
@@ -104,6 +130,7 @@ class MqttCureDataService implements CureDataService {
     if (_connectionStatus == ConnectionStatus.connected) {
       _client.disconnect();
     }
+    _timeoutTimer?.cancel();
     _dataStreamController.close();
     _connectionStatusController.close();
   }
@@ -139,19 +166,35 @@ class MqttCureDataService implements CureDataService {
     }
   }
   // Subscribe to a topic
-  void _subscribeToTopic(String topicName) {
-    _client.subscribe(topicName, MqttQos.atLeastOnce);
+  void _subscribeToStateTopic() {
+    final userId = supabase.auth.currentUser!.id;
+    String stateTopic = "$userId/$_deviceId/state";
+    _client.subscribe(stateTopic, MqttQos.atLeastOnce);
+    String targetsTopic = "$userId/$_deviceId/targets";
+    _client.subscribe(targetsTopic, MqttQos.atLeastOnce);
     // Listen for messages
     _client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
+
+      _lastMessageTime = DateTime.now();
+      if (_connectionStatus == ConnectionStatus.timedOut) {
+        _updateConnectionStatus(ConnectionStatus.connected);
+      }
       
-      final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
+      final MqttPublishMessage recMess = 
+      c[0].payload as MqttPublishMessage;
       final String payload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       
       // try {
         final Map<String, dynamic> data = jsonDecode(payload);
-        final CureState environmentalData = CureState.fromJson(data);
-        _currentData = environmentalData;
-        _dataStreamController.add(environmentalData);
+        if (c[0].topic == stateTopic) {
+          final CureState environmentalData = CureState.fromJson(data);
+          _currentData = environmentalData;
+          _dataStreamController.add(environmentalData);
+        } else if (c[0].topic == targetsTopic) {
+          final Map<CureCycle, CureTargets> targets = jsonToCureTargets(data);
+          _cureTargets = targets;
+          _cureTargetsStreamController.add(targets);
+        }
       // } catch (e) {
       //   // Handle parsing errors
       //   print("Error parsing message: $e");

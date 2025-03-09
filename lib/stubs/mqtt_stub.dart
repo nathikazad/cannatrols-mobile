@@ -22,21 +22,22 @@ class StubCureDataService implements CureDataService {
   final _dataStreamController = StreamController<CureState>.broadcast();
   final _connectionStatusController =
       StreamController<ConnectionStatus>.broadcast();
-
+  final _cureTargetsStreamController = StreamController<Map<CureCycle, CureTargets>>.broadcast();
   // Current state
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
   CureState _currentData = CureState.initial();
   String? _deviceId;
-
+  final Map<CureCycle, CureTargets> _cureTargets = {
+    CureCycle.store: CureTargets.initial(),
+    CureCycle.cure: CureTargets.initial(),
+    CureCycle.dry: CureTargets.initial(),
+  };
   // Simulation configuration
   SimulationScenario _scenario = SimulationScenario.stable;
   Timer? _simulationTimer;
   final Random _random = Random();
   int _simulationStep = 0;
-  StepMode _stepMode = StepMode.step;
-  double _targetTemperature = 68.0;
-  double _targetDewPoint = 57.0;
-  int _targetTime = 248940;
+
 
   // Configuration
   final Duration updateInterval;
@@ -56,6 +57,17 @@ class StubCureDataService implements CureDataService {
 
   @override
   CureState? get currentData => _currentData;
+
+  @override
+  Stream<Map<CureCycle, CureTargets>> get cureTargetsStream => _cureTargetsStreamController.stream;
+
+  @override
+  Map<CureCycle, CureTargets> get cureTargets => _cureTargets;
+
+  @override
+  Future<void> askForCureTargets() async {
+    // TODO: Implement askForCureTargets
+  }
 
   @override
   Future<void> connect(String deviceId) async {
@@ -109,19 +121,11 @@ class StubCureDataService implements CureDataService {
       _dataStreamController.add(_currentData);
     } 
     else if (command == 'setTargets') {
-      // Update target values
-      _targetTemperature = message['targetTemperature'];
-      _targetDewPoint = message['targetDewPoint'];
-      _targetTime = message['targetTime'];
-      _stepMode = stringToStepMode(message['stepMode']);
-      
-      // Update the current data with new targets
-      _currentData = _currentData.copyWith(
-        targetTemperature: _targetTemperature,
-        targetDewPoint: _targetDewPoint,
-        targetStepMode: _stepMode,
-        targetTime: _targetTime,
-      );
+
+      CureCycle cycle = stringToCureCycle(message['cycle']);
+      CureTargets targets = CureTargets.fromJson(message, cycleToString(cycle));
+      _cureTargets[cycle] = targets;
+      _cureTargetsStreamController.add(_cureTargets);
       
       // Emit the updated data
       _dataStreamController.add(_currentData);
@@ -135,7 +139,8 @@ class StubCureDataService implements CureDataService {
       // If timeLeft is 0, reset it to targetTime
       int timeLeft = _currentData.timeLeft;
       if (timeLeft == 0) {
-        timeLeft = _targetTime;
+        CureCycle cycle = _currentData.cycle;
+        timeLeft = _cureTargets[cycle]?.timeLeft ?? 248940;
       }
       
       // Update playing state and timeLeft
@@ -149,7 +154,7 @@ class StubCureDataService implements CureDataService {
       // Reset timeLeft to targetTime and set playing to true
       _currentData = _currentData.copyWith(
         isPlaying: true,
-        timeLeft: _targetTime,
+        timeLeft: _cureTargets[_currentData.cycle]?.timeLeft ?? 248940,
       );
       _dataStreamController.add(_currentData);
     }
@@ -221,10 +226,6 @@ class StubCureDataService implements CureDataService {
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
-      targetTemperature: _targetTemperature,
-      targetDewPoint: _targetDewPoint,
-      targetStepMode: _stepMode,
-      targetTime: _targetTime,
     );
   }
 
@@ -241,10 +242,6 @@ class StubCureDataService implements CureDataService {
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
-      targetTemperature: _targetTemperature,
-      targetDewPoint: _targetDewPoint,
-      targetStepMode: _stepMode,
-      targetTime: _targetTime,
     );
   }
 
@@ -261,10 +258,6 @@ class StubCureDataService implements CureDataService {
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
-      targetTemperature: _targetTemperature,
-      targetDewPoint: _targetDewPoint,
-      targetStepMode: _stepMode,
-      targetTime: _targetTime,
     );
   }
 
@@ -281,10 +274,6 @@ class StubCureDataService implements CureDataService {
       cycle: _currentData.cycle,
       timeLeft: _currentData.timeLeft,
       isPlaying: _currentData.isPlaying,
-      targetTemperature: _targetTemperature,
-      targetDewPoint: _targetDewPoint,
-      targetStepMode: _stepMode,
-      targetTime: _targetTime,
     );
   }
 

@@ -4,22 +4,19 @@ import 'package:flutter_app/stubs/mqtt_stub.dart';
 import 'package:flutter_app/utils/mqtt2.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 bool simulateData = false;
-
 
 // Provider for the device data service
 final cureDataServiceProvider = Provider<CureDataService>((ref) {
   // Create the appropriate service based on configuration
-  final CureDataService service = simulateData
-      ? StubCureDataService()
-      : MqttCureDataService();
-  
+  final CureDataService service =
+      simulateData ? StubCureDataService() : MqttCureDataService();
+
   // Dispose the service when the provider is disposed
   ref.onDispose(() {
     service.dispose();
   });
-  
+
   return service;
 });
 
@@ -36,27 +33,34 @@ class CureDataController {
   String? _connectedDeviceId;
 
   bool _isConnected = false;
-  
+
   CureDataController(this._service);
-  
+
   // Stream of environmental data
   Stream<CureState> get stateStream => _service.stateStream;
-  
+
+  // Get current targets
+  Stream<Map<CureCycle, CureTargets>> get cureTargetsStream =>
+      _service.cureTargetsStream;
+
   // Stream of connection status updates
-  Stream<ConnectionStatus> get connectionStatusStream => _service.connectionStatusStream;
-  
+  Stream<ConnectionStatus> get connectionStatusStream =>
+      _service.connectionStatusStream;
+
   // Current connection status
   ConnectionStatus get connectionStatus => _service.connectionStatus;
-  
+
   // Connect to the device
   Future<void> connect(String deviceId) async {
     print('Connecting to device: $deviceId');
     // If connected to a different device, disconnect first
     if (_isConnected && _connectedDeviceId != deviceId) {
-      print('Already connected, so disconnecting from device: $_connectedDeviceId');
+      print(
+        'Already connected, so disconnecting from device: $_connectedDeviceId',
+      );
       await disconnect();
     }
-    
+
     // Connect to the new device
     if (!_isConnected) {
       await _service.connect(deviceId);
@@ -64,7 +68,7 @@ class CureDataController {
       _connectedDeviceId = deviceId;
     }
   }
-  
+
   // Disconnect from the device
   Future<void> disconnect() async {
     print('Disconnecting from device: $_connectedDeviceId');
@@ -74,20 +78,25 @@ class CureDataController {
       _connectedDeviceId = null;
     }
   }
-  
+
+  // Ask for cure targets
+  Future<void> askForCureTargets() async {
+    await _service.askForCureTargets();
+  }
+
   // For stub service only - access to additional testing methods
-  StubCureDataService? get stubService => 
+  StubCureDataService? get stubService =>
       _service is StubCureDataService ? _service : null;
-  
+
   // Check if using stub service
   bool get isUsingStubService => _service is StubCureDataService;
-  
+
   // Set simulation scenario (if using stub service)
   void setScenario(SimulationScenario scenario) {
     stubService?.setScenario(scenario);
   }
 
-  void publishMessage(Map<String, dynamic> message) {   
+  void publishMessage(Map<String, dynamic> message) {
     _service.publishMessage(message);
   }
 
@@ -117,19 +126,29 @@ class CureDataController {
 
   void updateDeviceConfiguration({
     required CureCycle cycle,
-    required double temperature, 
-    required double dewPoint, 
-    required int timeInSeconds, 
-    required StepMode stepMode}) {
-    print('Updating device configuration: $temperature, $dewPoint, $timeInSeconds, $stepMode');
-    publishMessage({'command': 'setTargets', 'cycle': cycleToString(cycle), 'targetTemperature': temperature, 'targetDewPoint': dewPoint, 'stepMode': stepModeToString(stepMode), 'targetTime': timeInSeconds});
+    required double temperature,
+    required double dewPoint,
+    required int timeInSeconds,
+    required StepMode stepMode,
+  }) {
+    print(
+      'Updating device configuration: $temperature, $dewPoint, $timeInSeconds, $stepMode',
+    );
+    publishMessage({
+      'command': 'setTargets',
+      'cycle': cycleToString(cycle),
+      'targetTemperature': temperature,
+      'targetDewPoint': dewPoint,
+      'stepMode': stepModeToString(stepMode),
+      'targetTime': timeInSeconds,
+    });
   }
 
   // In CureDataController class in cure_controller.dart
   SimulationScenario? get currentScenario {
     return stubService?.currentScenario;
   }
-  
+
   // Manually set environmental data values (if using stub service)
   void setEnvironmentalData({
     double? temperature,
@@ -149,5 +168,9 @@ class CureDataController {
 
   CureState? get currentData {
     return _service.currentData;
+  }
+
+  Map<CureCycle, CureTargets> get cureTargets {
+    return _service.cureTargets;
   }
 }

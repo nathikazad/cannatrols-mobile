@@ -20,7 +20,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   // Flags to track connection and data state
   bool _isDataReady = false;
-  String? _connectionError;
+  ConnectionStatus _connectionStatus = ConnectionStatus.connecting;
 
   // Data values (will be populated from service)
   CureState? _currentData;
@@ -62,11 +62,9 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
     ) {
       if (mounted) {
         // Check if widget is still mounted
-        if (status == ConnectionStatus.error) {
-          setState(() {
-            _connectionError = 'Failed to connect to device. Please try again.';
-          });
-        }
+        setState(() {
+          _connectionStatus = status;
+        });
       }
     });
 
@@ -78,7 +76,6 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
           _totalSeconds = data.timeLeft;
           _currentData = data;
           _isDataReady = true;
-          _connectionError = null;
         });
       }
     });
@@ -205,6 +202,10 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                     _buildMainContent(),
 
                     Spacer(),
+                    if(_connectionStatus == ConnectionStatus.timedOut)
+                      _buildTimedOutDisplay()
+                    else
+                      SizedBox(height: 0),
 
                     // Bottom Logo and Edit Setting
                     _buildBottomRow(context),
@@ -249,10 +250,40 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
     );
   }
 
+  Widget _buildTimedOutDisplay() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+          decoration: BoxDecoration(
+            color: Color(0xFFF5F2E9), // Cream color background
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 20),
+              SizedBox(width: 8.0),
+              Text(
+                "Connection timed out",
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMainContent() {
     // If there's a connection error
-    if (_connectionError != null) {
-      return _buildErrorDisplay(_connectionError!);
+    if (_connectionStatus == ConnectionStatus.error) {
+      return _buildErrorDisplay("Device is not responding. Please try again.");
     }
 
     // If we're still waiting for data
@@ -542,7 +573,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      widget.device.name,
+                      _device.name,
                       style: TextStyle(
                         color: Colors.black87,
                         fontSize: 12,

@@ -1,14 +1,17 @@
 // device_provider.dart
 import 'dart:convert';
 
+import 'package:flutter_app/controllers/cure_controller.dart';
 import 'package:flutter_app/models/cure_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 final supabase = Supabase.instance.client;
 class DeviceNotifier extends StateNotifier<Device?> {
-  DeviceNotifier() : super(null) {
+  final Function(String) callbackOnConnect;
+  DeviceNotifier(this.callbackOnConnect) : super(null) {
     // Initialize with the first device if available
     _initializeWithFirstDevice();
   }
@@ -16,12 +19,20 @@ class DeviceNotifier extends StateNotifier<Device?> {
   Future<void> _initializeWithFirstDevice() async {
     final devices = await getDevices();
     if (devices.isNotEmpty) {
-      state = devices.first;
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? lastSelectedDeviceId = prefs.getString('selectedDeviceId');
+      if (lastSelectedDeviceId != null) {
+        selectDevice(devices.firstWhere((device) => device.id == lastSelectedDeviceId));
+      } else {
+        selectDevice(devices.first);
+      }
     }
   }
   
   void selectDevice(Device device) {
     state = device;
+    callbackOnConnect(device.id);
+    SharedPreferences.getInstance().then((prefs) => prefs.setString('selectedDeviceId', device.id));
   }
   
   void clearSelection() {
@@ -101,5 +112,8 @@ class DeviceNotifier extends StateNotifier<Device?> {
 }
 
 final selectedDeviceProvider = StateNotifierProvider<DeviceNotifier, Device?>((ref) {
-  return DeviceNotifier();
+  return DeviceNotifier((String deviceId) {
+    CureDataController controller = ref.read(cureControllerProvider);
+    controller.connect(deviceId);
+  });
 });
