@@ -23,7 +23,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
   String? _connectionError;
 
   // Data values (will be populated from service)
-  EnvironmentalData? _currentData;
+  CureState? _currentData;
   int _totalSeconds = 0;
 
   bool _showStubControls = false;
@@ -39,7 +39,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
   void initState() {
     super.initState();
     _device = widget.device;
-    _controller = ref.read(cureDataControllerProvider(_device.id));
+    _controller = ref.read(cureControllerProvider);
     _connectToDevice();
 
 
@@ -57,8 +57,11 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
 
   Future<void> _connectToDevice() async {
     // Set up connection status listener
-    _connectionStatusSubscription = _controller.connectionStatusStream.listen((status) {
-      if (mounted) {  // Check if widget is still mounted
+    _connectionStatusSubscription = _controller.connectionStatusStream.listen((
+      status,
+    ) {
+      if (mounted) {
+        // Check if widget is still mounted
         if (status == ConnectionStatus.error) {
           setState(() {
             _connectionError = 'Failed to connect to device. Please try again.';
@@ -68,8 +71,9 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
     });
 
     // Set up data listener
-    _dataStreamSubscription = _controller.dataStream.listen((data) {
-      if (mounted) {  // Check if widget is still mounted
+    _dataStreamSubscription = _controller.stateStream.listen((data) {
+      if (mounted) {
+        // Check if widget is still mounted
         setState(() {
           _totalSeconds = data.timeLeft;
           _currentData = data;
@@ -79,8 +83,15 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
       }
     });
 
-    // Attempt to connect
-    await _controller.connect();
+    if(_controller.currentData != null) {
+      setState(() {
+        _currentData = _controller.currentData;
+        _isDataReady = true;
+      });
+    }
+
+    // Connect using the device ID
+    await _controller.connect(_device.id);
   }
 
   @override
@@ -92,7 +103,7 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
     _connectionStatusSubscription?.cancel();
     _dataStreamSubscription?.cancel();
 
-    _controller.disconnect();
+    // _controller.disconnect();
     super.dispose();
   }
 
@@ -159,32 +170,19 @@ class _DeviceScreenState extends ConsumerState<DevicesScreen> {
       return;
     }
     // Navigate to config screen and await result
-    final result = await GoRouter.of(context).push<Map<String, dynamic>>(
+    await GoRouter.of(context).push<Map<String, dynamic>>(
       '/device_config',
-      extra: _currentData,
+      extra: {
+        'cycle': _currentData!.cycle,
+        'device': _device,
+      },
     );
     
-    // Handle the returned configuration values
-    if (result != null) {
-      double temperature = result['temperature'];
-      double dewPoint = result['dewPoint'];
-      int timeInSeconds = result['timeInSeconds'];
-      StepMode stepMode = result['stepMode'];
-      
-      // Update device with new configuration values
-      _controller.updateDeviceConfiguration(
-        temperature: temperature,
-        dewPoint: dewPoint,
-        timeInSeconds: timeInSeconds,
-        stepMode: stepMode,
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = ref.watch(cureDataControllerProvider(_device.id));
-    final isUsingStubService = controller.isUsingStubService;
+    final isUsingStubService = _controller.isUsingStubService;
 
     return Scaffold(
       body: Container(

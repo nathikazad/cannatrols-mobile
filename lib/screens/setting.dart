@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/providers/auth.dart';
 import 'package:flutter_app/screens/home_screen.dart';
 import 'package:flutter_app/screens/set_up.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -62,6 +64,7 @@ class SettingsScreen extends StatelessWidget {
                   _buildSettingItem("assets/images/wifi.png", 'WiFi', () {
                     // Add WiFi settings logic here
                     print('WiFi settings tapped');
+                    ref.read(authProvider.notifier).signOut();
                   }),
                 ],
               ),

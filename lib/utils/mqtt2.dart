@@ -13,19 +13,11 @@ class MqttCureDataService implements CureDataService {
   // MQTT client
   late MqttServerClient _client;
   
-  // MQTT configuration
-  // late String _host;
-  // final int _port = 8883;
-  // late String _username;
-  // late String _password;
-  // late String _identifier;
-  // late String _userId;
   String? _deviceId;
-  // late String _stateTopic;
-  // late String _commandTopic;
-  
+  CureState? _currentData;
+
   // Stream controllers
-  final _dataStreamController = StreamController<EnvironmentalData>.broadcast();
+  final _dataStreamController = StreamController<CureState>.broadcast();
   final _connectionStatusController = StreamController<ConnectionStatus>.broadcast();
   
   // Current state
@@ -35,13 +27,16 @@ class MqttCureDataService implements CureDataService {
   final supabase = Supabase.instance.client;
   
   @override
-  Stream<EnvironmentalData> get dataStream => _dataStreamController.stream;
+  Stream<CureState> get stateStream => _dataStreamController.stream;
   
   @override
   Stream<ConnectionStatus> get connectionStatusStream => _connectionStatusController.stream;
   
   @override
   ConnectionStatus get connectionStatus => _connectionStatus;
+
+  @override
+  CureState? get currentData => _currentData;
   
   @override
   Future<void> connect(String deviceId) async {
@@ -99,6 +94,7 @@ class MqttCureDataService implements CureDataService {
     if (_connectionStatus == ConnectionStatus.connected ||
         _connectionStatus == ConnectionStatus.connecting) {
       _client.disconnect();
+      _currentData = null;
       _updateConnectionStatus(ConnectionStatus.disconnected);
     }
   }
@@ -153,7 +149,8 @@ class MqttCureDataService implements CureDataService {
       
       // try {
         final Map<String, dynamic> data = jsonDecode(payload);
-        final EnvironmentalData environmentalData = EnvironmentalData.fromJson(data);
+        final CureState environmentalData = CureState.fromJson(data);
+        _currentData = environmentalData;
         _dataStreamController.add(environmentalData);
       // } catch (e) {
       //   // Handle parsing errors

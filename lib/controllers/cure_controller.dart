@@ -24,34 +24,23 @@ final cureDataServiceProvider = Provider<CureDataService>((ref) {
 });
 
 // Provider for the device data controller
-final cureDataControllerProvider = Provider.family<CureDataController, String>((ref, deviceId) {
+// Provider for the device data controller (removed family parameter)
+final cureControllerProvider = Provider<CureDataController>((ref) {
   final service = ref.watch(cureDataServiceProvider);
-  return CureDataController(service, deviceId);
-});
-
-// Provider for environmental data
-final environmentalDataProvider = StreamProvider.family<EnvironmentalData, String>((ref, deviceId) {
-  final controller = ref.watch(cureDataControllerProvider(deviceId));
-  controller.connect();
-  return controller.dataStream;
-});
-
-// Provider for connection status
-final connectionStatusProvider = StreamProvider.family<ConnectionStatus, String>((ref, deviceId) {
-  final controller = ref.watch(cureDataControllerProvider(deviceId));
-  return controller.connectionStatusStream;
+  return CureDataController(service);
 });
 
 // Controller class to manage device data
 class CureDataController {
   final CureDataService _service;
-  final String _deviceId;
+  String? _connectedDeviceId;
+
   bool _isConnected = false;
   
-  CureDataController(this._service, this._deviceId);
+  CureDataController(this._service);
   
   // Stream of environmental data
-  Stream<EnvironmentalData> get dataStream => _service.dataStream;
+  Stream<CureState> get stateStream => _service.stateStream;
   
   // Stream of connection status updates
   Stream<ConnectionStatus> get connectionStatusStream => _service.connectionStatusStream;
@@ -60,18 +49,29 @@ class CureDataController {
   ConnectionStatus get connectionStatus => _service.connectionStatus;
   
   // Connect to the device
-  Future<void> connect() async {
+  Future<void> connect(String deviceId) async {
+    print('Connecting to device: $deviceId');
+    // If connected to a different device, disconnect first
+    if (_isConnected && _connectedDeviceId != deviceId) {
+      print('Already connected, so disconnecting from device: $_connectedDeviceId');
+      await disconnect();
+    }
+    
+    // Connect to the new device
     if (!_isConnected) {
-      await _service.connect(_deviceId);
+      await _service.connect(deviceId);
       _isConnected = true;
+      _connectedDeviceId = deviceId;
     }
   }
   
   // Disconnect from the device
   Future<void> disconnect() async {
+    print('Disconnecting from device: $_connectedDeviceId');
     if (_isConnected) {
       await _service.disconnect();
       _isConnected = false;
+      _connectedDeviceId = null;
     }
   }
   
@@ -115,9 +115,14 @@ class CureDataController {
     publishMessage({'command': 'pause'});
   }
 
-  void updateDeviceConfiguration({required double temperature, required double dewPoint, required int timeInSeconds, required StepMode stepMode}) {
+  void updateDeviceConfiguration({
+    required CureCycle cycle,
+    required double temperature, 
+    required double dewPoint, 
+    required int timeInSeconds, 
+    required StepMode stepMode}) {
     print('Updating device configuration: $temperature, $dewPoint, $timeInSeconds, $stepMode');
-    publishMessage({'command': 'setTargets', 'targetTemperature': temperature, 'targetDewPoint': dewPoint, 'stepMode': stepModeToString(stepMode), 'targetTime': timeInSeconds});
+    publishMessage({'command': 'setTargets', 'cycle': cycleToString(cycle), 'targetTemperature': temperature, 'targetDewPoint': dewPoint, 'stepMode': stepModeToString(stepMode), 'targetTime': timeInSeconds});
   }
 
   // In CureDataController class in cure_controller.dart
@@ -142,7 +147,7 @@ class CureDataController {
     );
   }
 
-  EnvironmentalData? get currentData {
-    return stubService?.currentData;
+  CureState? get currentData {
+    return _service.currentData;
   }
 }

@@ -47,9 +47,13 @@ final routerProvider = Provider((ref) {
       ),
       GoRoute(
         path: '/device_config',
-        builder: (context, state) => DeviceConfigScreen(
-          environmentalData: state.extra as EnvironmentalData?,
-        ),
+        builder: (context, state) {
+          final params = state.extra as Map<String, dynamic>;
+          return DeviceConfigScreen(
+            initialCycle: params['cycle'] as CureCycle,
+            device: params['device'] as Device,
+          );
+        },
       ),
     ],
   );

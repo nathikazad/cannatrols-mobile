@@ -19,13 +19,13 @@ enum SimulationScenario {
 // Stub implementation for development and testing
 class StubCureDataService implements CureDataService {
   // Stream controllers
-  final _dataStreamController = StreamController<EnvironmentalData>.broadcast();
+  final _dataStreamController = StreamController<CureState>.broadcast();
   final _connectionStatusController =
       StreamController<ConnectionStatus>.broadcast();
 
   // Current state
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
-  EnvironmentalData _currentData = EnvironmentalData.initial();
+  CureState _currentData = CureState.initial();
   String? _deviceId;
 
   // Simulation configuration
@@ -45,7 +45,7 @@ class StubCureDataService implements CureDataService {
   StubCureDataService({this.updateInterval = const Duration(seconds: 2)});
 
   @override
-  Stream<EnvironmentalData> get dataStream => _dataStreamController.stream;
+  Stream<CureState> get stateStream => _dataStreamController.stream;
 
   @override
   Stream<ConnectionStatus> get connectionStatusStream =>
@@ -53,6 +53,9 @@ class StubCureDataService implements CureDataService {
 
   @override
   ConnectionStatus get connectionStatus => _connectionStatus;
+
+  @override
+  CureState? get currentData => _currentData;
 
   @override
   Future<void> connect(String deviceId) async {
@@ -178,7 +181,7 @@ class StubCureDataService implements CureDataService {
     _simulationStep++;
 
     // Generate new data based on scenario
-    EnvironmentalData newData;
+    CureState newData;
     switch (_scenario) {
       case SimulationScenario.stable:
         newData = _generateStableData();
@@ -206,8 +209,8 @@ class StubCureDataService implements CureDataService {
   }
 
   // Generate stable data with minor random fluctuations
-  EnvironmentalData _generateStableData() {
-    return EnvironmentalData(
+  CureState _generateStableData() {
+    return CureState(
       temperature: _currentData.temperature + _randomFluctuation(0.2),
       dewPoint: _currentData.dewPoint + _randomFluctuation(0.1),
       humidity: (_currentData.humidity + _randomFluctuationInt(1)).clamp(
@@ -226,8 +229,8 @@ class StubCureDataService implements CureDataService {
   }
 
   // Generate rising temperature data
-  EnvironmentalData _generateRisingTemperatureData() {
-    return EnvironmentalData(
+  CureState _generateRisingTemperatureData() {
+    return CureState(
       temperature: _currentData.temperature + 0.1 + _randomFluctuation(0.1),
       dewPoint: _currentData.dewPoint + 0.05 + _randomFluctuation(0.1),
       humidity: (_currentData.humidity - 1 + _randomFluctuationInt(1)).clamp(
@@ -246,8 +249,8 @@ class StubCureDataService implements CureDataService {
   }
 
   // Generate falling temperature data
-  EnvironmentalData _generateFallingTemperatureData() {
-    return EnvironmentalData(
+  CureState _generateFallingTemperatureData() {
+    return CureState(
       temperature: _currentData.temperature - 0.1 + _randomFluctuation(0.1),
       dewPoint: _currentData.dewPoint - 0.05 + _randomFluctuation(0.1),
       humidity: (_currentData.humidity + 1 + _randomFluctuationInt(1)).clamp(
@@ -266,8 +269,8 @@ class StubCureDataService implements CureDataService {
   }
 
   // Generate fluctuating data with higher variance
-  EnvironmentalData _generateFluctuatingData() {
-    return EnvironmentalData(
+  CureState _generateFluctuatingData() {
+    return CureState(
       temperature: _currentData.temperature + _randomFluctuation(0.5),
       dewPoint: _currentData.dewPoint + _randomFluctuation(0.3),
       humidity: (_currentData.humidity + _randomFluctuationInt(3)).clamp(
@@ -329,9 +332,6 @@ class StubCureDataService implements CureDataService {
     _simulationStep = 0;
   }
 
-  // In StubCureDataService, add a getter for _currentData
-  EnvironmentalData get currentData => _currentData;
-
   // In StubCureDataService class in mqtt_stub.dart
   SimulationScenario get currentScenario => _scenario;
 
@@ -375,7 +375,7 @@ class StubControls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.watch(cureDataControllerProvider(deviceId));
+    final controller = ref.watch(cureControllerProvider);
 
     // Only show controls if using stub service
     if (!controller.isUsingStubService) {
@@ -484,7 +484,7 @@ class StubControls extends ConsumerWidget {
           alignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: () => controller.connect(),
+              onPressed: () => controller.connect(deviceId),
               child: const Text('Connect'),
             ),
             ElevatedButton(

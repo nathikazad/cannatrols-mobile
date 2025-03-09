@@ -41,11 +41,12 @@ class Home extends ConsumerWidget {
                     }
                   }),
                   menuButton('EDIT CYCLES', Color(0xFF2196F3), () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => WifiSetupScreen(),
-                      ),
+                      GoRouter.of(context).push<Map<String, dynamic>>(
+                      '/device_config',
+                      extra: {
+                        'cycle': CureCycle.store,
+                        'device': device,
+                      },
                     );
                   }),
                   menuButton('SYSTEM SELECTION', Color(0xFF9C27B0), () {

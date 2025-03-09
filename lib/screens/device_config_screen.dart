@@ -1,52 +1,56 @@
+import 'dart:async';
+
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/controllers/cure_controller.dart';
 import 'package:flutter_app/models/cure_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-class DeviceConfigScreen extends StatefulWidget {
-  final EnvironmentalData? environmentalData;
-  
-  const DeviceConfigScreen({
-    super.key, 
-    this.environmentalData,
-  });
+class DeviceConfigScreen extends ConsumerStatefulWidget {
+  final CureCycle initialCycle;
+  final Device device;
+  const DeviceConfigScreen({super.key, required this.initialCycle, required this.device});
 
   @override
-  _DeviceConfigScreenState createState() => _DeviceConfigScreenState();
+  ConsumerState<DeviceConfigScreen> createState() => _DeviceConfigScreenState();
 }
 
-class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
+class _DeviceConfigScreenState extends ConsumerState<DeviceConfigScreen> {
   double temperatureValue = 68.0;
   double daysValue = 60.0;
   double dewPointValue = 54.0;
   double hoursValue = 20.0;
   StepMode stepMode = StepMode.step;
+  // EnvironmentalData? environmentalData;
+  late final CureDataController _controller;
+  late CureCycle _currentCycle;
+  late StreamSubscription<CureState> _dataSubscription;
 
   @override
   void initState() {
     super.initState();
+    _controller = ref.read(cureControllerProvider);
+    _currentCycle = widget.initialCycle;
+    _controller.connect(widget.device.id);
+    _dataSubscription =_controller.stateStream.listen((data) {
+      setState(() {
+        temperatureValue = data.targetTemperature;
+        dewPointValue = data.targetDewPoint;
+        daysValue = (data.timeLeft / (24 * 3600)).floorToDouble();
+        hoursValue = ((data.timeLeft % (24 * 3600)) / 3600).floorToDouble();
+        stepMode = data.targetStepMode;
+      });
+    });
     // Initialize values from provided data if available
-    if (widget.environmentalData != null) {
-      temperatureValue = widget.environmentalData!.targetTemperature;
-      dewPointValue = widget.environmentalData!.targetDewPoint;
-      if (temperatureValue < 58) {
-        temperatureValue = 58;
-      }
-      if (temperatureValue > 76) {
-        temperatureValue = 76;
-      }
-      if (dewPointValue < 45) {
-        dewPointValue = 45;
-      }
-      if (dewPointValue > 65) {
-        dewPointValue = 65;
-      }
-      
-      
+    if (_controller.currentData != null) {
+      temperatureValue = _controller.currentData!.targetTemperature;
+      dewPointValue = _controller.currentData!.targetDewPoint;
       // Convert seconds to days and hours
-      int totalSeconds = widget.environmentalData!.timeLeft;
+      int totalSeconds = _controller.currentData!.timeLeft;
       daysValue = (totalSeconds / (24 * 3600)).floorToDouble();
       hoursValue = ((totalSeconds % (24 * 3600)) / 3600).floorToDouble();
-      stepMode = widget.environmentalData!.targetStepMode;
+      stepMode = _controller.currentData!.targetStepMode;
     }
   }
 
@@ -60,7 +64,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
   }
 
   String getCureCycleSetting() {
-    switch (widget.environmentalData!.cycle) {
+    switch (_currentCycle) {
       case CureCycle.cure:
         return 'CURE \nCYCLE \nSETTINGS';
       case CureCycle.dry:
@@ -70,8 +74,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     }
   }
 
-    Color _getDeviceColor() {
-    switch (widget.environmentalData!.cycle) {
+  Color _getDeviceColor() {
+    switch (_currentCycle) {
       case CureCycle.cure:
         return Color(0xFF5AAFDE);
       case CureCycle.dry:
@@ -79,6 +83,23 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       default:
         return Color(0xFF53B738);
     }
+  }
+
+  CureCycle getNextCycle() {
+    switch (_currentCycle) {
+      case CureCycle.cure:
+        return CureCycle.dry;
+      case CureCycle.dry:
+        return CureCycle.store;
+      case CureCycle.store:
+        return CureCycle.cure;
+    }
+  }
+  
+  @override
+  void dispose() {
+    _dataSubscription.cancel();
+    super.dispose();
   }
 
   @override
@@ -94,19 +115,22 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      children: [
-                        Image.asset("assets/images/c2_bg.png", height: 100),
-                        SizedBox(height: 4),
-                        Text(
-                          'Main Menu',
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                    GestureDetector(
+                      onTap: () => GoRouter.of(context).pop(),
+                      child: Column(
+                        children: [
+                          Image.asset("assets/images/c2_bg.png", height: 100),
+                          SizedBox(height: 4),
+                          Text(
+                            'Main Menu',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -150,37 +174,61 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  buildSlider("Temperature", temperatureValue, (val) {
-                    setState(() {
-                      temperatureValue = val;
-                    });
-                  }, 58, 76),
-                  if (widget.environmentalData!.cycle != CureCycle.store)
-                    buildSlider("Days", daysValue, (val) {
+                  buildSlider(
+                    "Temperature",
+                    temperatureValue,
+                    (val) {
                       setState(() {
-                        daysValue = val;
+                        temperatureValue = val;
                       });
-                    }, 0, 23),
+                    },
+                    58,
+                    76,
+                  ),
+                  if (_currentCycle != CureCycle.store)
+                    buildSlider(
+                      "Days",
+                      daysValue,
+                      (val) {
+                        setState(() {
+                          daysValue = val;
+                        });
+                      },
+                      0,
+                      23,
+                    ),
                 ],
               ),
               SizedBox(height: 50),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  buildSlider("Dew Point", dewPointValue, (val) {
-                    setState(() {
-                      dewPointValue = val;
-                    });
-                  }, 45, 65),
-                  if (widget.environmentalData!.cycle != CureCycle.store)
-                    buildSlider("Hours", hoursValue, (val) {
+                  buildSlider(
+                    "Dew Point",
+                    dewPointValue,
+                    (val) {
                       setState(() {
-                        hoursValue = val;
+                        dewPointValue = val;
                       });
-                    }, 0, 23),
+                    },
+                    45,
+                    65,
+                  ),
+                  if (_currentCycle != CureCycle.store)
+                    buildSlider(
+                      "Hours",
+                      hoursValue,
+                      (val) {
+                        setState(() {
+                          hoursValue = val;
+                        });
+                      },
+                      0,
+                      23,
+                    ),
                 ],
               ),
-              SizedBox(height:38,),
+              SizedBox(height: 38),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -196,22 +244,29 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               ),
               Spacer(),
               Padding(
-                padding: const EdgeInsets.only(bottom:10.0, left: 20, right: 20),
+                padding: const EdgeInsets.only(
+                  bottom: 10.0,
+                  left: 20,
+                  right: 20,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Image.asset(
-                      'assets/images/logo.png',
-                      height: 40,
-                    ),
+                    Image.asset('assets/images/logo.png', height: 40),
                     GestureDetector(
                       onTap: () {
-                        Navigator.pop(context, {
-                          'temperature': double.parse(temperatureValue.toStringAsFixed(1)),
-                          'dewPoint': double.parse(dewPointValue.toStringAsFixed(1)),
-                          'timeInSeconds': getTotalSeconds(),
-                          'stepMode': stepMode,
+                        CureDataController controller = ref.read(cureControllerProvider);
+                        controller.updateDeviceConfiguration(
+                          cycle: _currentCycle,
+                          temperature: double.parse(temperatureValue.toStringAsFixed(1)),
+                          dewPoint: double.parse(dewPointValue.toStringAsFixed(1)),
+                          timeInSeconds: getTotalSeconds(),
+                          stepMode: stepMode,
+                        );
+                        setState(() {
+                          _currentCycle = getNextCycle();
                         });
+
                       },
                       child: DottedBorder(
                         borderType: BorderType.RRect,
@@ -245,7 +300,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                           ),
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -255,7 +310,14 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       ),
     );
   }
-  Widget buildSlider(String label, double value, Function(double) onChanged, int min, int max) {
+
+  Widget buildSlider(
+    String label,
+    double value,
+    Function(double) onChanged,
+    int min,
+    int max,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -267,8 +329,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                (label == "Temperature" || label == "Dew Point") 
-                    ? value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '.0') 
+                (label == "Temperature" || label == "Dew Point")
+                    ? value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '.0')
                     : value.toInt().toString(),
                 style: TextStyle(
                   color: Colors.white,
@@ -323,22 +385,24 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       ],
     );
   }
+
   Widget _buildRadioOption(String label, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Row(
         children: [
           Center(
-              child: isSelected
-                  ? Image.asset("assets/images/selected.png"):Image.asset("assets/images/select.png") // Selected imag, // Unselected image
+            child:
+                isSelected
+                    ? Image.asset("assets/images/selected.png")
+                    : Image.asset(
+                      "assets/images/select.png",
+                    ), // Selected imag, // Unselected image
           ),
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 25,
-            ),
+            style: const TextStyle(color: Colors.black54, fontSize: 25),
           ),
         ],
       ),

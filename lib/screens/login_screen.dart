@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'dart:io' show Platform;
 import '../providers/auth.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -80,10 +80,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
-            SignInWithAppleButton(
-              onPressed: () => ref.read(authProvider.notifier).signInWithApple(context),
-              style: SignInWithAppleButtonStyle.black,
+            OutlinedButton.icon(
+              onPressed: () => ref.read(authProvider.notifier).signInWithGoogle(context),
+              icon: const Icon(Icons.android, size: 24.0),
+              label: const Text('Sign in with Google'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                side: const BorderSide(color: Colors.grey),
+              ),
             ),
+            const SizedBox(height: 16),
+            if (Platform.isIOS)
+              SignInWithAppleButton(
+                onPressed: () => ref.read(authProvider.notifier).signInWithApple(context),
+                style: SignInWithAppleButtonStyle.black,
+              ),
           ],
         ),
       ),

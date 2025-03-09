@@ -14,6 +14,10 @@ CureCycle stringToCureCycle(String cycleString) {
   );
 }
 
+String cycleToString(CureCycle cycle) {
+  return cycle.toString().split('.').last;
+}
+
 class Device {
   final String id;
   final String name;
@@ -37,7 +41,7 @@ String stepModeToString(StepMode stepMode) {
   return stepMode.toString().split('.').last;
 }
 // Data model for environmental data
-class EnvironmentalData {
+class CureState {
   final double temperature;
   final double dewPoint;
   final int humidity;
@@ -51,7 +55,7 @@ class EnvironmentalData {
   final StepMode targetStepMode;
   final int targetTime;
 
-  EnvironmentalData({
+  CureState({
     required this.temperature,
     required this.dewPoint,
     required this.humidity,
@@ -66,9 +70,9 @@ class EnvironmentalData {
   });
 
   // Create from JSON map
-  factory EnvironmentalData.fromJson(Map<String, dynamic> json) {
+  factory CureState.fromJson(Map<String, dynamic> json) {
     print(json);
-    return EnvironmentalData(
+    return CureState(
       temperature: (json['temperature'] as num).toDouble(),
       dewPoint: (json['dewPoint'] as num).toDouble(),
       humidity: (json['humidity'] as num).toInt(),
@@ -84,8 +88,8 @@ class EnvironmentalData {
   }
 
   // Default values for initial state
-  factory EnvironmentalData.initial() {
-    return EnvironmentalData(
+  factory CureState.initial() {
+    return CureState(
       temperature: 68.0,
       dewPoint: 54.0,
       humidity: 57,
@@ -101,7 +105,7 @@ class EnvironmentalData {
   }
 
   // Create a copy with updated values
-  EnvironmentalData copyWith({
+  CureState copyWith({
     double? temperature,
     double? dewPoint,
     int? humidity,
@@ -114,7 +118,7 @@ class EnvironmentalData {
     StepMode? targetStepMode,
     int? targetTime
   }) {
-    return EnvironmentalData(
+    return CureState(
       temperature: temperature ?? this.temperature,
       dewPoint: dewPoint ?? this.dewPoint,
       humidity: humidity ?? this.humidity,
@@ -140,9 +144,13 @@ enum ConnectionStatus {
 
 // Abstract interface for device data service
 abstract class CureDataService {
+
   // Stream of environmental data
-  Stream<EnvironmentalData> get dataStream;
-  
+  Stream<CureState> get stateStream;
+
+  // Get current data
+  CureState? get currentData;
+
   // Stream of connection status updates
   Stream<ConnectionStatus> get connectionStatusStream;
   
